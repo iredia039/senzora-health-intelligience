@@ -1,5 +1,5 @@
 {
-  "name": "velune-web",
+  "name": "senzora-web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^6.0.0",
-    "geist": "^1.8.1",
     "lucide-react": "^1.60.0",
     "next": "16.4.2",
     "react": "19.3.0",

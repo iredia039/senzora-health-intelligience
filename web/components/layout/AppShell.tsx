@@ -47,7 +47,7 @@ function ProfileCard({ onNavigate }: { onNavigate?: () => void }) {
       </span>
       <span className="leading-tight">
         <span className="block text-sm font-medium text-fg">Hotaru</span>
-        <span className="block text-xs text-muted">User profile</span>
+        <span className="block text-xs text-muted">Prototype profile</span>
       </span>
     </Link>
   );
@@ -104,7 +104,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex min-h-screen flex-col">
         <header className="sticky top-0 z-20 border-b border-line bg-canvas/90 backdrop-blur">
-          <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-4 sm:px-6 lg:px-8">
             <button
               type="button"
               onClick={() => setOpen(true)}
@@ -114,7 +114,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Menu className="size-5" aria-hidden="true" />
             </button>
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-xl font-semibold tracking-tight text-fg sm:text-2xl">{current?.title ?? "Velune"}</h1>
+              <h1 className="truncate font-display text-xl font-semibold tracking-tight text-fg sm:text-2xl">{current?.title ?? "Senzora"}</h1>
               <p className="hidden truncate text-sm text-muted sm:block">{current?.description}</p>
             </div>
             <Link
@@ -127,7 +127,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <ThemeToggle />
           </div>
         </header>
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
     </div>
   );

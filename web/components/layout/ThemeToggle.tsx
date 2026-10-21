@@ -21,7 +21,7 @@ export function ThemeToggle() {
   function toggle() {
     document.documentElement.dataset.theme = next;
     try {
-      localStorage.setItem("velune-theme", next);
+      localStorage.setItem("senzora-theme", next);
     } catch {
       /* storage unavailable: the theme still changes for this session */
     }

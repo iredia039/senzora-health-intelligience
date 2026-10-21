@@ -1,33 +1,38 @@
 @import "tailwindcss";
 
+/* Senzora brand tokens.
+   Dark (default): Midnight Navy #071321, Deep Teal #102D43, Electric Cyan #5CE1E6,
+   Soft White #F2FAFF, Slate Gray #9EB8C9.
+   Light: same identity on Soft White surfaces, with a deeper cyan-teal accent so
+   text and focus rings keep enough contrast on light backgrounds. */
 :root,
 :root[data-theme="dark"] {
-  --canvas: #101318;
-  --surface: #171c23;
-  --card: #1c232c;
-  --raised: #242c37;
-  --fg: #f1f3f5;
-  --muted: #a4adb8;
-  --line: #303946;
-  --accent: #78b8aa;
-  --accent-bright: #52d6c0;
-  --sky: #8daed0;
-  --glow: rgba(82, 214, 192, 0.4);
+  --canvas: #071321;
+  --surface: #102d43;
+  --card: #102d43;
+  --raised: #17384f;
+  --fg: #f2faff;
+  --muted: #9eb8c9;
+  --line: #22485f;
+  --accent: #5ce1e6;
+  --accent-bright: #5ce1e6;
+  --sky: #9eb8c9;
+  --glow: rgba(92, 225, 230, 0.3);
   color-scheme: dark;
 }
 
 :root[data-theme="light"] {
-  --canvas: #f5f7f8;
+  --canvas: #f2faff;
   --surface: #ffffff;
   --card: #ffffff;
-  --raised: #eef2f4;
-  --fg: #202833;
-  --muted: #65717d;
-  --line: #dce3e8;
-  --accent: #347f73;
-  --accent-bright: #2a7a6d;
-  --sky: #426f99;
-  --glow: rgba(52, 127, 115, 0.25);
+  --raised: #e4f1f8;
+  --fg: #071321;
+  --muted: #4a6578;
+  --line: #cfe2ee;
+  --accent: #0b7f89;
+  --accent-bright: #086a73;
+  --sky: #4a6578;
+  --glow: rgba(11, 127, 137, 0.2);
   color-scheme: light;
 }
 
@@ -42,7 +47,8 @@
   --color-accent: var(--accent);
   --color-accent-bright: var(--accent-bright);
   --color-sky: var(--sky);
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-space-grotesk), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {

@@ -1,8 +1,8 @@
 import type { Preferences, Reading } from "@/types";
 
-const PREFIX = "velune:";
+const PREFIX = "senzora:";
 const KEYS = { readings: `${PREFIX}readings`, preferences: `${PREFIX}preferences` } as const;
-const CHANGE_EVENT = "velune:storage-change";
+const CHANGE_EVENT = "senzora:storage-change";
 
 export const DEFAULT_PREFERENCES: Preferences = {
   displayName: "Hotaru",
@@ -48,6 +48,22 @@ const isReadingList = (v: unknown): v is Reading[] =>
 const isPreferences = (v: unknown): v is Preferences =>
   typeof v === "object" && v !== null && typeof (v as Preferences).displayName === "string";
 
+/** Raw stored strings: stable values that React can compare cheaply to detect changes. */
+export const getReadingsSnapshot = (): string => {
+  try {
+    return window.localStorage.getItem(KEYS.readings) ?? "";
+  } catch {
+    return "";
+  }
+};
+export const getPreferencesSnapshot = (): string => {
+  try {
+    return window.localStorage.getItem(KEYS.preferences) ?? "";
+  } catch {
+    return "";
+  }
+};
+
 export const loadReadings = (): Reading[] => read(KEYS.readings, [], isReadingList);
 export const saveReadings = (readings: Reading[]): boolean => write(KEYS.readings, readings);
 
@@ -68,11 +84,11 @@ export function subscribeToStorage(onChange: () => void): () => void {
   };
 }
 
-/** Removes all Velune data, including the saved theme. */
+/** Removes all Senzora data, including the saved theme. */
 export function resetAllData(): void {
   try {
     Object.values(KEYS).forEach((k) => window.localStorage.removeItem(k));
-    window.localStorage.removeItem("velune-theme");
+    window.localStorage.removeItem("senzora-theme");
     window.dispatchEvent(new Event(CHANGE_EVENT));
   } catch {
     /* nothing to clear if storage is unavailable */
