@@ -47,7 +47,7 @@ function ProfileCard({ onNavigate }: { onNavigate?: () => void }) {
       </span>
       <span className="leading-tight">
         <span className="block text-sm font-medium text-fg">Hotaru</span>
-        <span className="block text-xs text-muted">Prototype profile</span>
+        <span className="block text-xs text-muted">User profile</span>
       </span>
     </Link>
   );
