@@ -17,4 +17,12 @@ model User {
   name String
   email String @unique
   createdAt DateTime @default(now())
+  phone String ?
+}
+
+model Pet {
+  id Int @id @default(autoincrement())
+  name String
+  species String
+  createdAt DateTime @default(now())
 }
