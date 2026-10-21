@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+:root,
+:root[data-theme="dark"] {
+  --canvas: #101318;
+  --surface: #171c23;
+  --card: #1c232c;
+  --raised: #242c37;
+  --fg: #f1f3f5;
+  --muted: #a4adb8;
+  --line: #303946;
+  --accent: #78b8aa;
+  --accent-bright: #52d6c0;
+  --sky: #8daed0;
+  --glow: rgba(82, 214, 192, 0.4);
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --canvas: #f5f7f8;
+  --surface: #ffffff;
+  --card: #ffffff;
+  --raised: #eef2f4;
+  --fg: #202833;
+  --muted: #65717d;
+  --line: #dce3e8;
+  --accent: #347f73;
+  --accent-bright: #2a7a6d;
+  --sky: #426f99;
+  --glow: rgba(52, 127, 115, 0.25);
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-raised: var(--raised);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-bright: var(--accent-bright);
+  --color-sky: var(--sky);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    background: var(--canvas);
+    color: var(--fg);
+    font-family: var(--font-sans);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent-bright);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
