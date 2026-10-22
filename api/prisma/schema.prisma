@@ -13,16 +13,57 @@ datasource db {
 }
 
 model User {
-  id Int @id @default(autoincrement())
-  name String
-  email String @unique
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  pets      Pet[]
   createdAt DateTime @default(now())
-  phone String ?
+  phone     String?
 }
 
 model Pet {
-  id Int @id @default(autoincrement())
-  name String
-  species String
+  id        Int      @id @default(autoincrement())
+  name      String
+  species   String
+  ownerId   Int
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 }
+
+model Pharmacy {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  address      String
+  stock        Stock[]
+  createdAt    DateTime @default(now())
+}
+
+model Drug {
+  id                   Int      @id @default(autoincrement())
+  name                 String
+  description          String
+  prescriptionRequired Boolean
+  stock                Stock[]
+  createdAt            DateTime @default(now())
+}
+
+model Stock {
+  id         Int      @id @default(autoincrement())
+  pharmacyId Int
+  pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  drugId     Int
+  drug       Drug     @relation(fields: [drugId], references: [id], onDelete: Cascade)
+  quantity   Int
+  price      Int
+  updatedAt  DateTime @updatedAt
+
+  @@unique([pharmacyId, drugId])
+}
+
+// model Post {
+//   id Int @id @default(autoincrement())
+//   title String
+//   author Us
+// }
