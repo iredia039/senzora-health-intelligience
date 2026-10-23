@@ -16,6 +16,7 @@ model User {
   id        Int      @id @default(autoincrement())
   name      String
   email     String   @unique
+  hashPassword String
   pets      Pet[]
   createdAt DateTime @default(now())
   phone     String?

@@ -1,0 +1,16 @@
+const express = require('express')
+const app = express()
+const registerRoute = require('./routes/authRoutes')
+const helmet = require('helmet')
+
+app.use(helmet())
+app.use(express.json())
+
+app.use('/register', registerRoute)
+
+const port = 4000
+
+app.listen(port, () => {
+    console.log(`app is listening ${port}`)
+})
+
