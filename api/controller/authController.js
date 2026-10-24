@@ -2,6 +2,12 @@ const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const { prisma } = require('../prisma')
 
+/**
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
+
 async function register(req, res) {
     try {
             const data = {
@@ -80,6 +86,32 @@ async function login(req, res) {
     }
 }
 
+/**
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
+async function me(req, res) {
+    try {
+        const userId = req.user.id
+
+        const data = await prisma.user.findUnique({
+            where:{
+                id: userId
+            },
+            select:{
+                id: true,
+                name: true,
+                email: true
+            }
+        })
+
+        res.status(200).json(data)
+    } catch (error) {
+        return res.status(500).json({ error: 'something went wrong, please try again'})
+    }
+}
 
 
-module.exports = { register, login }
+
+module.exports = { register, login, me }

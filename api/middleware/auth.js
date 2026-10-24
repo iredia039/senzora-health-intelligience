@@ -24,7 +24,7 @@ async function auth(req, res, next) {
     req.user = verified
     next()
     } catch (error) {
-        return res.status(401).json({error: 'invalid token'})
+        return res.status(401).json({error: 'invalid or expired token'})
     }
 }
 
