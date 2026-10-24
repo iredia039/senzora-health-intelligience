@@ -1,4 +1,5 @@
 const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
 const { prisma } = require('../prisma')
 
 async function register(req, res) {
@@ -70,7 +71,10 @@ async function login(req, res) {
         return res.status(401).json({ error: 'invalid credentials'})
     }
 
-    res.status(200).json(mail.name)
+    const tokenly = jwt.sign({id:mail.id}, process.env.JWT_SECRET, {expiresIn: '1d'})
+    
+
+    res.status(200).json({token:tokenly, user:{id:mail.id, name:mail.name}})
     } catch (error) {
         return res.status(500).json({error: 'something went wrong'})
     }

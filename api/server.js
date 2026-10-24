@@ -6,7 +6,7 @@ const helmet = require('helmet')
 app.use(helmet())
 app.use(express.json())
 
-app.use('/register', registerRoute)
+app.use('/', registerRoute)
 
 const port = 4000
 
