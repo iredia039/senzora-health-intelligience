@@ -29,3 +29,23 @@ FRONTEND SENDS: header authorization with bearer and token
 SUCCESS: sends back the user email and name and id with status code of 200
 ERROR1:no token available with status code of 401
 ERROR2:this token is invalid or expired with status code of 401
+
+FIND NEARBY FACILITIES
+WHAT IT DOES: finds hospitals and clinics near the user's coordinates, nearest first
+METHOD AND PATH: GET /facilities
+FRONTEND SENDS: query values in the URL, no body
+  lat (required, number)
+  lng (required, number)
+  type (optional, "hospital" or "clinic"; leave it out to get both)
+  radiusKm (optional, number from 1 to 50, default 10)
+  example: /facilities?lat=9.0765&lng=7.3986&type=clinic&radiusKm=10
+SUCCESS: 200 with an array, nearest first. Each item has:
+  id, name, type, address, area, lat, lng, emergency, open24h, distanceKm
+  Nothing nearby: 200 with an empty array []
+ERRORS:
+  400 "lat and lng are required" when either is missing
+  400 "lat and lng must be valid coordinates" when they are not numbers or are out of range
+  400 "type must be hospital or clinic"
+  400 "radiusKm must be a number from 1 to 50"
+  500 "something went wrong"
+WHO CAN CALL IT: anyone, no token needed

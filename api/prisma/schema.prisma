@@ -13,13 +13,32 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  hashPassword String
-  pets      Pet[]
-  createdAt DateTime @default(now())
-  phone     String?
+  id            Int             @id @default(autoincrement())
+  name          String
+  email         String          @unique
+  hashPassword  String
+  pets          Pet[]
+  conversations Conversation[]
+  createdAt     DateTime        @default(now())
+  phone         String?
+}
+
+model Conversation {
+  id        Int        @id @default(autoincrement())
+  userId    Int
+  title     String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
+  createdAt DateTime   @default(now())
+}
+
+model Message {
+  id             Int           @id @default(autoincrement())
+  role           String
+  content        String
+  conversationId Int
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
 }
 
 model Pet {
