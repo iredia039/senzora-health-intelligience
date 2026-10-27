@@ -49,3 +49,25 @@ ERRORS:
   400 "radiusKm must be a number from 1 to 50"
   500 "something went wrong"
 WHO CAN CALL IT: anyone, no token needed
+
+AI CHATBOT
+FUNCTION: lets a logged-in user chat with the AI and get a reply
+METHOD: POST /chatbot
+FRONTEND SEND:
+  header: Authorization: Bearer
+  body:
+    message (string, required, 1 to 500 characters)
+    conversationId (number, optional; leave it out to start a new chat)
+    readings (array, optional, up to 20 recent readings from the browser; each has type, measuredAt, and either systolic and diastolic or bpm)
+SUCCESS: status 200
+  { reply, conversationId, title }
+ERROR:
+  400 'please fill in the message box'
+  400 'message must be a string'
+  400 'message is too long'
+  400 'readings must be a list of up to 20 readings'
+  401 'no token available'
+  401 'token is invalid'
+  404 'conversation not found'
+  500 'something went wrong'
+  503 'ai is temporarily unavailable'
