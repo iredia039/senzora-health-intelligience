@@ -1,3 +1,7 @@
+require('net').setDefaultAutoSelectFamily(false)
+
+const { setGlobalDispatcher, Agent } = require('undici')
+setGlobalDispatcher(new Agent({ connect: { timeout: 30000 } }))
 const express = require('express')
 const app = express()
 const registerRoute = require('./routes/authRoutes')
