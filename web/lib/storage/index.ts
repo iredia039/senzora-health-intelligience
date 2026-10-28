@@ -1,7 +1,7 @@
-import type { Preferences, Reading } from "@/types";
+import type { ChatMessage, Preferences, Reading, ReadingInput } from "@/types";
 
 const PREFIX = "senzora:";
-const KEYS = { readings: `${PREFIX}readings`, preferences: `${PREFIX}preferences` } as const;
+const KEYS = { readings: `${PREFIX}readings`, preferences: `${PREFIX}preferences`, chat: `${PREFIX}chat` } as const;
 const CHANGE_EVENT = "senzora:storage-change";
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -73,6 +73,36 @@ export const loadPreferences = (): Preferences => ({
 });
 export const savePreferences = (prefs: Preferences): boolean => write(KEYS.preferences, prefs);
 
+/* ---- Assistant conversation: one running chat, kept on this device ---- */
+
+const MAX_CHAT_MESSAGES = 100;
+
+const isChatList = (v: unknown): v is ChatMessage[] =>
+  Array.isArray(v) &&
+  v.every(
+    (m) =>
+      typeof m === "object" &&
+      m !== null &&
+      typeof (m as ChatMessage).id === "string" &&
+      typeof (m as ChatMessage).content === "string" &&
+      ((m as ChatMessage).role === "user" || (m as ChatMessage).role === "assistant"),
+  );
+
+export const getChatSnapshot = (): string => {
+  try {
+    return window.localStorage.getItem(KEYS.chat) ?? "";
+  } catch {
+    return "";
+  }
+};
+
+export const loadChat = (): ChatMessage[] => read(KEYS.chat, [], isChatList);
+
+/** Adds one message and keeps only the newest ones, so the chat can never fill up storage. */
+export const appendChatMessage = (message: ChatMessage): boolean => write(KEYS.chat, [...loadChat(), message].slice(-MAX_CHAT_MESSAGES));
+
+export const clearChat = (): boolean => write(KEYS.chat, []);
+
 /** Subscribe to changes made in this tab or any other tab. Returns an unsubscribe function. */
 export function subscribeToStorage(onChange: () => void): () => void {
   const onStorage = (e: StorageEvent) => e.key === null || e.key.startsWith(PREFIX) ? onChange() : undefined;
@@ -93,4 +123,59 @@ export function resetAllData(): void {
   } catch {
     /* nothing to clear if storage is unavailable */
   }
+}
+
+/* ---- Reading changes: the only place the vitals screens write to storage ---- */
+
+const newId = () => crypto.randomUUID();
+
+export function addReading(input: ReadingInput): boolean {
+  const now = new Date().toISOString();
+  const reading = { ...input, id: newId(), source: "manual", createdAt: now, updatedAt: now } as Reading;
+  return saveReadings([...loadReadings(), reading]);
+}
+
+/** Editing a reading makes it yours, so an edited demo reading becomes a manual one. */
+export function updateReading(id: string, input: ReadingInput): boolean {
+  const readings = loadReadings();
+  const existing = readings.find((r) => r.id === id);
+  if (!existing || existing.type !== input.type) return false;
+  const next = { ...input, id, source: "manual", createdAt: existing.createdAt, updatedAt: new Date().toISOString() } as Reading;
+  return saveReadings(readings.map((r) => (r.id === id ? next : r)));
+}
+
+export function deleteReading(id: string): boolean {
+  return saveReadings(loadReadings().filter((r) => r.id !== id));
+}
+
+/** Ten days of made-up readings, always labelled "demo". They end one hour ago. */
+export function addDemoReadings(): boolean {
+  const DAY = 86_400_000;
+  const end = Date.now() - 3_600_000;
+  const stamp = new Date().toISOString();
+  const bpm = [72, 75, 70, 78, 74, 76, 73, 80, 77, 74];
+  const systolic = [116, 118, 121, 119, 124];
+  const diastolic = [76, 77, 79, 78, 81];
+  const demo: Reading[] = [];
+  bpm.forEach((value, i) => {
+    const measuredAt = new Date(end - (bpm.length - 1 - i) * DAY).toISOString();
+    demo.push({ id: newId(), type: "heart_rate", bpm: value, measuredAt, source: "demo", createdAt: stamp, updatedAt: stamp });
+    if (i % 2 === 0) {
+      demo.push({
+        id: newId(),
+        type: "blood_pressure",
+        systolic: systolic[i / 2],
+        diastolic: diastolic[i / 2],
+        measuredAt,
+        source: "demo",
+        createdAt: stamp,
+        updatedAt: stamp,
+      });
+    }
+  });
+  return saveReadings([...loadReadings(), ...demo]);
+}
+
+export function removeDemoReadings(): boolean {
+  return saveReadings(loadReadings().filter((r) => r.source !== "demo"));
 }

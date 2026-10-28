@@ -9,6 +9,17 @@ export const metadata: Metadata = {
   title: { default: "Senzora Health Intelligence", template: "%s · Senzora" },
   description: "See Beyond the Signals.",
   applicationName: "Senzora Health Intelligence",
+  openGraph: {
+    type: "website",
+    siteName: "Senzora Health Intelligence",
+    title: "Senzora Health Intelligence",
+    description: "See Beyond the Signals.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Senzora Health Intelligence",
+    description: "See Beyond the Signals.",
+  },
 };
 
 export const viewport: Viewport = {

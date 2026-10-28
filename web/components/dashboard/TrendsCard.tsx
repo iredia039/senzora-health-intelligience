@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { textLink } from "@/components/ui/buttons";
 import type { Reading } from "@/types";
 
 type Tab = "heart_rate" | "blood_pressure";
@@ -36,15 +37,16 @@ export function TrendsCard({ readings }: { readings: Reading[] }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 id="trends-heading" className="font-display text-lg font-semibold text-fg">Health trends</h2>
-          <p className="text-sm text-muted">Your last {Math.min(points.length || 14, 14)} saved readings, in {unit}.</p>
+          <p className="text-sm text-muted">
+            {points.length > 0 ? `Your last ${points.length} saved ${name} reading${points.length === 1 ? "" : "s"}, in ${unit}.` : `Measured in ${unit}.`}
+          </p>
         </div>
-        <div role="tablist" aria-label="Choose a vital" className="flex rounded-xl border border-line bg-canvas p-1">
+        <div role="group" aria-label="Choose a vital" className="flex rounded-xl border border-line bg-canvas p-1">
           {TABS.map(({ id, label }) => (
             <button
               key={id}
               type="button"
-              role="tab"
-              aria-selected={tab === id}
+              aria-pressed={tab === id}
               onClick={() => setTab(id)}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
                 tab === id ? "bg-raised text-accent-bright" : "text-muted hover:text-fg"
@@ -57,7 +59,7 @@ export function TrendsCard({ readings }: { readings: Reading[] }) {
       </div>
 
       {points.length >= 2 ? (
-        <div className="mt-5 h-64 w-full">
+        <div className="mt-5 h-64 w-full" role="img" aria-label={`Line chart of your last ${points.length} ${name} readings in ${unit}, from ${points[0].label} to ${points[points.length - 1].label}.`}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
               <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" vertical={false} />
@@ -66,13 +68,15 @@ export function TrendsCard({ readings }: { readings: Reading[] }) {
               <Tooltip
                 contentStyle={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, color: "var(--fg)" }}
                 labelStyle={{ color: "var(--muted)" }}
+                formatter={(value, seriesName) => [`${value} ${unit}`, seriesName]}
               />
+              {tab === "blood_pressure" && <Legend wrapperStyle={{ color: "var(--muted)", fontSize: 12 }} />}
               {tab === "heart_rate" ? (
                 <Line type="monotone" dataKey="bpm" name="Heart rate (bpm)" stroke="var(--accent-bright)" strokeWidth={2} dot={{ r: 3, fill: "var(--accent-bright)" }} isAnimationActive={false} />
               ) : (
                 <>
                   <Line type="monotone" dataKey="systolic" name="Systolic (mmHg)" stroke="var(--accent-bright)" strokeWidth={2} dot={{ r: 3, fill: "var(--accent-bright)" }} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="diastolic" name="Diastolic (mmHg)" stroke="var(--sky)" strokeWidth={2} dot={{ r: 3, fill: "var(--sky)" }} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="diastolic" name="Diastolic (mmHg)" stroke="var(--sky)" strokeWidth={2} strokeDasharray="5 4" dot={{ r: 3, fill: "var(--sky)" }} isAnimationActive={false} />
                 </>
               )}
             </LineChart>
@@ -85,10 +89,10 @@ export function TrendsCard({ readings }: { readings: Reading[] }) {
           </p>
           <p className="mt-1 max-w-sm text-sm text-muted">
             {points.length === 0
-              ? "Record a reading to start building your trend."
+              ? `Each ${name} reading you record becomes a point on this chart.`
               : "Record at least one more reading to see a trend line."}
           </p>
-          <Link href="/vitals" className="mt-4 text-sm font-medium text-accent-bright hover:underline">
+          <Link href="/vitals" className={`${textLink} mt-4`}>
             Go to Vitals
           </Link>
         </div>

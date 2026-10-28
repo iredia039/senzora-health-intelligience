@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, Menu, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Logo } from "@/components/brand/Logo";
 import { NAV_ITEMS } from "./nav";
+import { countRecentFlags } from "@/lib/analysis";
+import { useHydrated, usePreferences, useReadings } from "@/lib/hooks/useStoredData";
 import { ThemeToggle } from "./ThemeToggle";
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
@@ -36,6 +38,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 function ProfileCard({ onNavigate }: { onNavigate?: () => void }) {
+  const { displayName } = usePreferences();
   return (
     <Link
       href="/settings"
@@ -43,11 +46,11 @@ function ProfileCard({ onNavigate }: { onNavigate?: () => void }) {
       className="flex items-center gap-3 rounded-xl border border-line bg-card px-3 py-2.5 transition-colors hover:bg-raised"
     >
       <span className="grid size-9 place-items-center rounded-full bg-accent/15 text-sm font-semibold text-accent-bright" aria-hidden="true">
-        H
+        {displayName.trim().charAt(0).toUpperCase() || "S"}
       </span>
       <span className="leading-tight">
-        <span className="block text-sm font-medium text-fg">Hotaru</span>
-        <span className="block text-xs text-muted">User profile</span>
+        <span className="block text-sm font-medium text-fg">{displayName}</span>
+        <span className="block text-xs text-muted">Saved on this device</span>
       </span>
     </Link>
   );
@@ -57,6 +60,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const current = NAV_ITEMS.find((item) => item.href === pathname);
+  const hydrated = useHydrated();
+  const { readings } = useReadings();
+  const { alertsEnabled } = usePreferences();
+  // The current time is only read in the browser, never while the page is prerendered.
+  const recentFlags = useMemo(() => (hydrated && alertsEnabled ? countRecentFlags(readings) : 0), [hydrated, alertsEnabled, readings]);
 
   useEffect(() => {
     if (!open) return;
@@ -119,10 +127,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <Link
               href="/insights"
-              aria-label="View alerts and insights"
-              className="grid size-9 place-items-center rounded-lg border border-line bg-card text-muted transition-colors hover:text-fg"
+              aria-label={recentFlags > 0 ? `View alerts and insights: ${recentFlags} flagged reading${recentFlags === 1 ? "" : "s"} in the last 7 days` : "View alerts and insights"}
+              className="relative grid size-9 place-items-center rounded-lg border border-line bg-card text-muted transition-colors hover:text-fg"
             >
               <Bell className="size-4" aria-hidden="true" />
+              {recentFlags > 0 && <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-danger" aria-hidden="true" />}
             </Link>
             <ThemeToggle />
           </div>

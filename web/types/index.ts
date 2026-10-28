@@ -23,6 +23,11 @@ export type BloodPressureReading = ReadingBase & {
 
 export type Reading = HeartRateReading | BloodPressureReading;
 
+/** What the vitals form collects; the storage layer adds ids, source and timestamps. */
+export type ReadingInput =
+  | { type: "heart_rate"; bpm: number; measuredAt: string; notes?: string }
+  | { type: "blood_pressure"; systolic: number; diastolic: number; measuredAt: string; notes?: string };
+
 export type ThemePreference = "light" | "dark" | "system";
 
 export type Preferences = {

@@ -17,6 +17,7 @@
   --accent: #5ce1e6;
   --accent-bright: #5ce1e6;
   --sky: #9eb8c9;
+  --danger: #ff9b9b;
   --glow: rgba(92, 225, 230, 0.3);
   color-scheme: dark;
 }
@@ -32,6 +33,7 @@
   --accent: #0b7f89;
   --accent-bright: #086a73;
   --sky: #4a6578;
+  --danger: #b3261e;
   --glow: rgba(11, 127, 137, 0.2);
   color-scheme: light;
 }
@@ -47,6 +49,7 @@
   --color-accent: var(--accent);
   --color-accent-bright: var(--accent-bright);
   --color-sky: var(--sky);
+  --color-danger: var(--danger);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-space-grotesk), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
