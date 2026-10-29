@@ -1,7 +1,7 @@
 const askModel = require('../utils/openRouter')
 const systemPrompt = require('../utils/systemPrompt')
+const checkEmergency = require('../utils/emergencyChecks')
 const { prisma } = require('../prisma')
-
 
 /**
  * @param {import('express').Request} req
@@ -55,90 +55,112 @@ async function chatbot(req, res) {
         }
     }
 
-const conversationId = req.body.conversationId
+    const conversationId = req.body.conversationId
 
-if (conversationId !== undefined) {
-    if (typeof conversationId !== "number" || !Number.isInteger(conversationId) || conversationId < 1) {
-        return res.status(400).json({ error: 'conversationId must be a positive whole number' })
-    }
-}
-
-const userId = req.user.id
-
-let conversation = null
-
-if (conversationId !== undefined) {
-    conversation = await prisma.conversation.findUnique({
-        where: { id: conversationId }
-    })
-
-    if (conversation === null || conversation.userId !== userId) {
-        return res.status(404).json({ error: 'conversation not found' })
-    }
-} else {
-    conversation = await prisma.conversation.create({
-        data: {
-            userId: userId,
-            title: message.slice(0, 40)
+    if (conversationId !== undefined) {
+        if (typeof conversationId !== "number" || !Number.isInteger(conversationId) || conversationId < 1) {
+            return res.status(400).json({ error: 'conversationId must be a positive whole number' })
         }
-    })
-}
+    }
 
-const history = await prisma.message.findMany({
-    where: { conversationId: conversation.id },
-    orderBy: { createdAt: "desc" },
-    take: 10
-})
+    const userId = req.user.id
 
-history.reverse()
+    let conversation = null
 
+    if (conversationId !== undefined) {
+        conversation = await prisma.conversation.findUnique({
+            where: { id: conversationId }
+        })
 
-let userContent = message
-
-if (readings !== undefined && readings.length > 0) {
-    const lines = readings.map((r) => {
-        if (r.type === "heart_rate") {
-            return `${r.measuredAt}: heart rate ${r.bpm} bpm`
+        if (conversation === null || conversation.userId !== userId) {
+            return res.status(404).json({ error: 'conversation not found' })
         }
-        return `${r.measuredAt}: blood pressure ${r.systolic}/${r.diastolic} mmHg`
+    } else {
+        conversation = await prisma.conversation.create({
+            data: {
+                userId: userId,
+                title: message.slice(0, 40)
+            }
+        })
+    }
+
+    const emergency = checkEmergency(message, readings)
+
+    if (emergency) {
+        try {
+            await prisma.message.create({
+                data: { role: "user", content: message, conversationId: conversation.id }
+            })
+
+            await prisma.message.create({
+                data: { role: "assistant", content: emergency.reply, conversationId: conversation.id }
+            })
+        } catch (error) {
+            console.error(error)
+            return res.status(500).json({ error: 'something went wrong, please try again' })
+        }
+
+        return res.status(200).json({
+            reply: emergency.reply,
+            conversationId: conversation.id,
+            title: conversation.title,
+            emergency: true
+        })
+    }
+
+    const history = await prisma.message.findMany({
+        where: { conversationId: conversation.id },
+        orderBy: { createdAt: "desc" },
+        take: 10
     })
-    userContent = `${message}\n\nMy recent readings:\n${lines.join("\n")}`
-}
 
-const messages = [
-    { role: "system", content: systemPrompt },
-    ...history.map((m) => ({ role: m.role, content: m.content })),
-    { role: "user", content: userContent }
-]
+    history.reverse()
 
-let reply
+    let userContent = message
 
-try {
-    reply = await askModel(messages)
-} catch (error) {
-    console.log(error);
+    if (readings !== undefined && readings.length > 0) {
+        const lines = readings.map((r) => {
+            if (r.type === "heart_rate") {
+                return `${r.measuredAt}: heart rate ${r.bpm} bpm`
+            }
+            return `${r.measuredAt}: blood pressure ${r.systolic}/${r.diastolic} mmHg`
+        })
+        userContent = `${message}\n\nMy recent readings:\n${lines.join("\n")}`
+    }
 
-    return res.status(503).json({ error: 'assistant unavailable, please try again' })
-    
-}
+    const messages = [
+        { role: "system", content: systemPrompt },
+        ...history.map((m) => ({ role: m.role, content: m.content })),
+        { role: "user", content: userContent }
+    ]
 
-try {
-    await prisma.message.create({
-        data: { role: "user", content: message, conversationId: conversation.id }
+    let reply
+
+    try {
+        reply = await askModel(messages)
+    } catch (error) {
+        console.error(error)
+        return res.status(503).json({ error: 'assistant unavailable, please try again' })
+    }
+
+    try {
+        await prisma.message.create({
+            data: { role: "user", content: message, conversationId: conversation.id }
+        })
+
+        await prisma.message.create({
+            data: { role: "assistant", content: reply, conversationId: conversation.id }
+        })
+    } catch (error) {
+        console.error(error)
+        return res.status(500).json({ error: 'something went wrong, please try again' })
+    }
+
+    return res.status(200).json({
+        reply: reply,
+        conversationId: conversation.id,
+        title: conversation.title
     })
-
-    await prisma.message.create({
-        data: { role: "assistant", content: reply, conversationId: conversation.id }
-    })
-} catch (error) {
-    return res.status(500).json({ error: 'something went wrong, please try again' })
-}
-
-return res.status(200).json({
-    reply: reply,
-    conversationId: conversation.id,
-    title: conversation.title
-})
 }
 
 module.exports = chatbot

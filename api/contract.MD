@@ -71,3 +71,13 @@ ERROR:
   404 'conversation not found'
   500 'something went wrong'
   503 'ai is temporarily unavailable'
+
+
+EMERGENCY SITUATIONS
+AI must stop chatting when user starts experiencing:
+.Chest pain or pressure, especially with sweating, arm or jaw pain, or breathlessness.
+.Stroke signs: face drooping, arm weakness, slurred speech, or sudden confusion.
+.Severe trouble breathing, or the user can’t speak full sentences.
+.Blood pressure at or above 180/120.
+.Resting heart rate above 130 or below 40.
+.AI must respond with get urgent help when user starts having thoughts of self harm
