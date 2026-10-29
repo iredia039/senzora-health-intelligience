@@ -81,3 +81,20 @@ AI must stop chatting when user starts experiencing:
 .Blood pressure at or above 180/120.
 .Resting heart rate above 130 or below 40.
 .AI must respond with get urgent help when user starts having thoughts of self harm
+
+CONSENT TEXT
+What the assistant does
+
+It answers general health questions in plain language.
+When readings are included with your message, it uses them to explain what they may mean.
+It does not diagnose, prescribe, or replace a doctor. In an emergency, call your local emergency number or go to the nearest hospital.
+
+Where your messages go
+
+Your messages, and any readings sent with them, are sent over the internet to an AI provider (OpenRouter and the AI model behind it).
+That provider may keep what it receives. Please don’t include your name, phone number, address or other identifying details.
+
+What we store
+
+Your conversations are saved in your Senzora account so you can see your chat history.
+We do not sell your information or make it public. Keep this line only if it’s true for your project.
