@@ -1,13 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Download, Moon, Sun } from "lucide-react";
 import { dangerButton, primaryButton, secondaryButton } from "@/components/ui/buttons";
 import { readingsToCsv } from "@/lib/export/csv";
 import { downloadFile, todayStamp } from "@/lib/export/download";
 import { useChat, useHydrated, usePreferences, useReadings } from "@/lib/hooks/useStoredData";
 import { setTheme, useTheme } from "@/lib/hooks/useTheme";
-import { loadChat, loadPreferences, loadReadings, resetAllData, savePreferences } from "@/lib/storage";
+import {
+  hasAssistantConsent,
+  loadChat,
+  loadPreferences,
+  loadReadings,
+  resetAllData,
+  savePreferences,
+  subscribeToStorage,
+  withdrawAssistantConsent,
+} from "@/lib/storage";
 
 const NAME_MAX = 40;
 const inputClass = "w-full rounded-xl border border-line bg-canvas px-3.5 py-2.5 text-sm text-fg placeholder:text-muted aria-invalid:border-danger";
@@ -138,6 +147,38 @@ function NotificationsCard() {
   );
 }
 
+function AssistantConsentCard() {
+  const given = useSyncExternalStore(subscribeToStorage, hasAssistantConsent, () => false);
+  const [status, setStatus] = useState("");
+
+  const withdraw = () => {
+    const ok = withdrawAssistantConsent();
+    setStatus(
+      ok
+        ? "Consent withdrawn. The assistant will ask for your agreement again before you use it."
+        : "Couldn't withdraw consent. Your browser is blocking storage for this site.",
+    );
+  };
+
+  return (
+    <Card
+      id="consent-heading"
+      title="Assistant consent"
+      description="The assistant needs your agreement before it can be used. You can take that agreement back at any time."
+    >
+      <p className="text-sm text-fg">{given ? "You have agreed to use the assistant." : "You have not agreed to use the assistant."}</p>
+      {given && (
+        <button type="button" onClick={withdraw} className={`${secondaryButton} mt-3`}>
+          Withdraw consent
+        </button>
+      )}
+      <p role="status" className="mt-3 min-h-5 text-sm text-muted">
+        {status}
+      </p>
+    </Card>
+  );
+}
+
 function PrivacyCard() {
   return (
     <Card id="privacy-heading" title="Privacy">
@@ -239,6 +280,7 @@ export function SettingsView() {
       <ProfileCard />
       <AppearanceCard />
       <NotificationsCard />
+      <AssistantConsentCard />
       <PrivacyCard />
       <DataCard />
     </div>

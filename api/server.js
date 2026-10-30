@@ -2,11 +2,17 @@ require('net').setDefaultAutoSelectFamily(false)
 
 const { setGlobalDispatcher, Agent } = require('undici')
 setGlobalDispatcher(new Agent({ connect: { timeout: 30000 } }))
+
+const cors = require('cors')
 const express = require('express')
 const app = express()
 const registerRoute = require('./routes/authRoutes')
 const helmet = require('helmet')
 
+
+app.use(cors({
+    origin: 'http://localhost:3000'
+}))
 app.use(helmet())
 app.use(express.json())
 

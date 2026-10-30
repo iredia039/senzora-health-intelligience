@@ -1,7 +1,7 @@
 import type { ChatMessage, Preferences, Reading, ReadingInput } from "@/types";
 
 const PREFIX = "senzora:";
-const KEYS = { readings: `${PREFIX}readings`, preferences: `${PREFIX}preferences`, chat: `${PREFIX}chat` } as const;
+const KEYS = { readings: `${PREFIX}readings`, preferences: `${PREFIX}preferences`, chat: `${PREFIX}chat`, consent: `${PREFIX}consent` } as const;
 const CHANGE_EVENT = "senzora:storage-change";
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -179,3 +179,27 @@ export function addDemoReadings(): boolean {
 export function removeDemoReadings(): boolean {
   return saveReadings(loadReadings().filter((r) => r.source !== "demo"));
 }
+
+/* ---- Assistant consent: saved with a version so changed wording asks again ---- */
+
+const CONSENT_VERSION = 1;
+
+export const hasAssistantConsent = (): boolean => {
+  try {
+    return window.localStorage.getItem(KEYS.consent) === String(CONSENT_VERSION);
+  } catch {
+    return false;
+  }
+};
+
+export const saveAssistantConsent = (): boolean => write(KEYS.consent, CONSENT_VERSION);
+
+export const withdrawAssistantConsent = (): boolean => {
+  try {
+    window.localStorage.removeItem(KEYS.consent);
+    window.dispatchEvent(new Event(CHANGE_EVENT));
+    return true;
+  } catch {
+    return false;
+  }
+};

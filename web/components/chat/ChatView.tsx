@@ -6,7 +6,7 @@ import { Info, Send, Trash2 } from "lucide-react";
 import { primaryButton, secondaryButton, textLink } from "@/components/ui/buttons";
 import { askAssistant } from "@/lib/assistant";
 import { useChat, useReadings } from "@/lib/hooks/useStoredData";
-import { appendChatMessage, clearChat } from "@/lib/storage";
+import { appendChatMessage, clearChat, hasAssistantConsent, saveAssistantConsent } from "@/lib/storage";
 import type { ChatMessage } from "@/types";
 
 const STARTERS = [
@@ -18,6 +18,62 @@ const STARTERS = [
 
 const MAX_LENGTH = 500;
 const STORAGE_ERROR = "Couldn't save this chat. Your browser is blocking storage for this site, so the conversation can't be kept on this device.";
+const CONSENT_ERROR = "Couldn't save your choice. Your browser is blocking storage for this site, so your agreement can't be kept on this device.";
+
+function ConsentNotice({ onAgree }: { onAgree: () => boolean }) {
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <section aria-labelledby="consent-title" className="mx-auto max-w-2xl rounded-2xl border border-line bg-card px-5 py-6 sm:px-8 sm:py-8">
+      <h2 id="consent-title" className="font-display text-xl font-semibold text-fg">
+        Before you use the assistant
+      </h2>
+
+      {/* Remove this paragraph when the assistant is connected to the API. */}
+      <p className="mt-3 rounded-xl border border-dashed border-line px-3.5 py-2.5 text-sm text-muted">
+        Prototype note: this describes the connected assistant. The prototype you are using today sends nothing.
+      </p>
+
+      <div className="mt-5 space-y-5 text-sm leading-relaxed text-muted">
+        <div>
+          <h3 className="font-medium text-fg">What the assistant does</h3>
+          <p className="mt-1">
+            It answers general health questions in plain language. If you choose to include your readings, it uses them to explain what they may mean. It does not diagnose,
+            prescribe, or replace a doctor. In an emergency, call your local emergency number or go to the nearest hospital.
+          </p>
+        </div>
+
+        <div>
+          <h3 className="font-medium text-fg">Where your messages go</h3>
+          <p className="mt-1">
+            Your messages, and your readings if you include them, are sent over the internet to an AI provider (OpenRouter and the AI model behind it). That provider may keep
+            what it receives. Please do not write your name, phone number, address or other identifying details.
+          </p>
+        </div>
+
+        <div>
+          <h3 className="font-medium text-fg">What we store</h3>
+          <p className="mt-1">Your conversations are saved in your Senzora account so you can see them again.</p>
+        </div>
+      </div>
+
+      {failed && (
+        <p role="alert" className="mt-4 text-sm text-danger">
+          {CONSENT_ERROR}
+        </p>
+      )}
+
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <button type="button" onClick={() => setFailed(!onAgree())} className={primaryButton}>
+          I understand and agree
+        </button>
+        <Link href="/" className={secondaryButton}>
+          Not now
+        </Link>
+      </div>
+    </section>
+  );
+}
 
 export function ChatView() {
   const { ready, messages } = useChat();
@@ -26,19 +82,29 @@ export function ChatView() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [confirmClear, setConfirmClear] = useState(false);
+  const [consent, setConsent] = useState<"checking" | "given" | "missing">("checking");
+  const [includeReadings, setIncludeReadings] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setConsent(hasAssistantConsent() ? "given" : "missing");
+  }, []);
 
   useEffect(() => {
     const list = listRef.current;
     if (list) list.scrollTop = list.scrollHeight;
   }, [messages.length, sending]);
 
-  if (!ready) {
+  if (!ready || consent === "checking") {
     return (
       <div aria-busy="true" className="rounded-2xl border border-line bg-card px-6 py-16 text-center text-sm text-muted">
         Opening your conversation
       </div>
     );
+  }
+
+  if (consent === "missing") {
+    return <ConsentNotice onAgree={() => (saveAssistantConsent() ? (setConsent("given"), true) : false)} />;
   }
 
   async function send(text: string) {
@@ -55,7 +121,7 @@ export function ChatView() {
     setConfirmClear(false);
     setSending(true);
     try {
-      const reply = await askAssistant([...messages, question], readings);
+      const reply = await askAssistant([...messages, question], includeReadings ? readings : []);
       if (!appendChatMessage(reply)) setError(STORAGE_ERROR);
     } catch {
       setError("The assistant couldn't answer. Send your message again.");
@@ -151,7 +217,7 @@ export function ChatView() {
         {sending && (
           <div className="flex justify-start">
             <p role="status" className="rounded-2xl rounded-bl-md border border-dashed border-line px-4 py-2.5 text-sm text-muted">
-              Senzora is reading your saved readings
+              {includeReadings ? "Senzora is reading your saved readings" : "Senzora is writing a reply"}
             </p>
           </div>
         )}
@@ -169,6 +235,25 @@ export function ChatView() {
             {error}
           </p>
         )}
+
+        <label className="mb-3 flex items-start gap-2.5 text-sm text-fg">
+          <input
+            type="checkbox"
+            checked={includeReadings}
+            disabled={readings.length === 0 || sending}
+            onChange={(e) => setIncludeReadings(e.target.checked)}
+            className="mt-0.5 size-4 accent-accent-bright disabled:opacity-50"
+          />
+          <span>
+            Include my recent readings with my message
+            <span className="block text-xs text-muted">
+              {readings.length === 0
+                ? "You have no saved readings yet."
+                : "Off by default. Your readings are sent to the AI provider only while this is on."}
+            </span>
+          </span>
+        </label>
+
         <div className="flex items-end gap-2">
           <div className="min-w-0 flex-1">
             <label htmlFor="chat-input" className="sr-only">

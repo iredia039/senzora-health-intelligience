@@ -7,7 +7,7 @@ const chestPainPhrases = [
     'heart attack', 'pain in my left arm', 'pain in my jaw'
 ]
 
-const chestPainWords = ['pain', 'hurt', 'tight', 'pressure', 'heavy', 'burning', 'squeez', 'ache', 'crushing']
+const chestPainWords = ['pain', 'hurt', 'tight', 'pressure', 'heavy', 'burning', 'ache', 'crushing']
 
 const strokePhrases = [
     'face drooping', 'face is drooping', 'drooping face', 'face droop',
@@ -33,7 +33,6 @@ const medicalReply = `What you describe can be a medical emergency, and I cannot
 
 const selfHarmReply = `I am really sorry you are feeling this way, and I am glad you said it. Your safety matters most right now. Please reach out to someone now: call your local emergency number, or tell a person close to you and ask them to stay with you. If you can, move away from anything you could use to hurt yourself. You do not have to go through this alone. ${emergencyNumbers}`
 
-
 const questionStarters = [
     'what', 'whats', 'why', 'how', 'hows', 'when', 'which', 'can', 'could',
     'does', 'do', 'is', 'are', 'should', 'tell', 'explain', 'list', 'give', 'describe'
@@ -58,9 +57,63 @@ const helpWords = [
     'recognize', 'spot', 'notice'
 ]
 
+const otherPersonWords = [
+    'he', 'hes', 'she', 'shes', 'they', 'him', 'her', 'someone', 'somebody'
+]
+
+const otherPersonPhrases = [
+    'my father', 'my dad', 'my mother', 'my mom', 'my mum',
+    'my friend', 'my baby', 'my child', 'my son', 'my daughter',
+    'my brother', 'my sister', 'my wife', 'my husband',
+    'my grandmother', 'my grandfather', 'my grandma', 'my grandpa',
+    'my teacher', 'my neighbour', 'my neighbor',
+    'my colleague', 'my boss', 'my student'
+]
+
+const othersReply = `What you describe can be a medical emergency, and I cannot assess it safely in a chat. Please get urgent medical help for them now: call your local emergency number or get them to the nearest hospital. Stay with them and do not leave them alone. ${emergencyNumbers}`
+
+const firstPersonWords = ['i', 'im', 'ive', 'me', 'myself']
+
+const otherSelfHarmPhrases = [
+    'kill himself', 'kill herself', 'kill themselves', 'kill themself',
+    'end his life', 'end her life', 'end their life',
+    'wants to die', 'want to die', 'wanted to die',
+    'hurt himself', 'hurt herself', 'hurt themselves',
+    'harm himself', 'harm herself', 'harm themselves',
+    'better off dead', 'no reason to live', 'dont want to live', 'dont want to be alive'
+]
+
+const selfHarmOthersReply = `I am sorry you are dealing with this, and it is good that you are taking it seriously. If you think they are in immediate danger, call your local emergency number or get them to the nearest hospital right now, and do not leave them alone. If it is not immediate, stay with them if you can, listen without judging, and encourage them to contact a crisis line or a trusted person. If you can, help keep anything they could use to hurt themselves out of reach. You are not alone in this, and support is also available for you. ${emergencyNumbers}`
+
 function isGeneralQuestion(text) {
     const words = text.split(' ')
     return questionStarters.includes(words[0]) && !words.some((w) => personWords.includes(w))
+}
+
+function mentionsOtherPerson(text) {
+    const words = text.split(' ')
+
+    if (words.some((n) => otherPersonWords.includes(n))) {
+        return true
+    }
+
+    const padded = ` ${text} `
+
+    if (otherPersonPhrases.some((p) => padded.includes(` ${p} `))) {
+        return true
+    }
+
+    return false
+}
+
+function isAboutSelf(text) {
+    const words = text.split(' ')
+
+    if (words.some((w) => firstPersonWords.includes(w))) {
+        return true
+    }
+
+    return false
 }
 
 function normalize(text) {
@@ -78,15 +131,15 @@ function hasAny(text, phrases) {
 function checkMessage(message) {
     const text = normalize(message)
 
-if (hasAny(text, selfHarmPhrases)) {
-    const educational = isGeneralQuestion(text) && hasAny(text, helpWords)
+    if (hasAny(text, selfHarmPhrases)) {
+        const educational = isGeneralQuestion(text) && hasAny(text, helpWords)
 
-    if (!educational) {
-        return { kind: 'self_harm', reply: selfHarmReply }
+        if (!educational) {
+            return { kind: 'self_harm', reply: selfHarmReply }
+        }
+
+        return null
     }
-
-    return null
-}
 
     if (isGeneralQuestion(text)) return null
 
@@ -99,6 +152,12 @@ if (hasAny(text, selfHarmPhrases)) {
         hasAny(text, breathingPhrases) ||
         hasAny(text, urgentPhrases)
     ) {
+        const aboutSelf = isAboutSelf(text)
+
+        if (mentionsOtherPerson(text) && !aboutSelf) {
+            return { kind: 'medical', reply: othersReply }
+        }
+
         return { kind: 'medical', reply: medicalReply }
     }
 
@@ -116,14 +175,14 @@ function checkReadings(readings) {
         if (r.type === 'blood_pressure' && (r.systolic >= 180 || r.diastolic >= 120)) {
             return {
                 kind: 'medical',
-                reply: `Your blood pressure reading of ${r.systolic}/${r.diastolic} is in a range that needs urgent medical attention. Please get medical help now: call your local emergency number or go to the nearest hospital.`
+                reply: `Your blood pressure reading of ${r.systolic}/${r.diastolic} is in a range that needs urgent medical attention. Please get medical help now: call your local emergency number or go to the nearest hospital. ${emergencyNumbers}`
             }
         }
 
         if (r.type === 'heart_rate' && (r.bpm > 130 || r.bpm < 40)) {
             return {
                 kind: 'medical',
-                reply: `Your heart rate reading of ${r.bpm} bpm is in a range that needs urgent medical attention. Please get medical help now: call your local emergency number or go to the nearest hospital.`
+                reply: `Your heart rate reading of ${r.bpm} bpm is in a range that needs urgent medical attention. Please get medical help now: call your local emergency number or go to the nearest hospital. ${emergencyNumbers}`
             }
         }
     }
