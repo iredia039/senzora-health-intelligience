@@ -27,9 +27,11 @@ const selfHarmPhrases = [
     'no reason to live', 'dont want to live', 'dont want to be alive'
 ]
 
-const medicalReply = 'What you describe can be a medical emergency, and I cannot assess it safely in a chat. Please get urgent medical help now: call your local emergency number or go to the nearest hospital. If you can, ask someone nearby to stay with you.'
+const emergencyNumbers = 'Common emergency numbers: 112 (EU and many other countries), 911 (US and Canada), 999 (UK), 000 (Australia).'
 
-const selfHarmReply = 'I am really sorry you are feeling this way, and I am glad you said it. Your safety matters most right now. Please reach out to someone now: call your local emergency number, or tell a person close to you and ask them to stay with you. If you can, move away from anything you could use to hurt yourself. You do not have to go through this alone.'
+const medicalReply = `What you describe can be a medical emergency, and I cannot assess it safely in a chat. Please get urgent medical help now: call your local emergency number or go to the nearest hospital. If you can, ask someone nearby to stay with you. ${emergencyNumbers}`
+
+const selfHarmReply = `I am really sorry you are feeling this way, and I am glad you said it. Your safety matters most right now. Please reach out to someone now: call your local emergency number, or tell a person close to you and ask them to stay with you. If you can, move away from anything you could use to hurt yourself. You do not have to go through this alone. ${emergencyNumbers}`
 
 
 const questionStarters = [
