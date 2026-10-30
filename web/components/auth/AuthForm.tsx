@@ -1,0 +1,126 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, type FormEvent } from "react";
+import { primaryButton, textLink } from "@/components/ui/buttons";
+import { ApiError } from "@/lib/api";
+import { login, register } from "@/lib/auth";
+
+type Mode = "login" | "register";
+
+const inputClass = "mt-1.5 w-full rounded-xl border border-line bg-canvas px-3.5 py-2.5 text-sm text-fg placeholder:text-muted";
+
+/** Only same-site paths are allowed, so a crafted link cannot send someone to another site. */
+function safeNext(value: string | null): string {
+  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
+}
+
+function Field(props: { id: string; label: string; type: string; value: string; onChange: (v: string) => void; autoComplete: string }) {
+  return (
+    <div>
+      <label htmlFor={props.id} className="text-sm font-medium text-fg">
+        {props.label}
+      </label>
+      <input
+        id={props.id}
+        type={props.type}
+        value={props.value}
+        autoComplete={props.autoComplete}
+        onChange={(e) => props.onChange(e.target.value)}
+        className={inputClass}
+      />
+    </div>
+  );
+}
+
+export function AuthForm({ mode }: { mode: Mode }) {
+  const router = useRouter();
+  const next = safeNext(useSearchParams().get("next"));
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const isRegister = mode === "register";
+
+  const toMessage = (err: unknown) => (err instanceof ApiError ? err.message : "Something went wrong. Try again.");
+
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (busy) return;
+    if ((isRegister && !name.trim()) || !email.trim() || !password) {
+      setError("Fill in every field.");
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+
+    if (isRegister) {
+      try {
+        await register(name.trim(), email.trim(), password);
+      } catch (err) {
+        setError(toMessage(err));
+        setBusy(false);
+        return;
+      }
+    }
+
+    try {
+      await login(email.trim(), password);
+      router.push(next);
+    } catch (err) {
+      // The account exists now, so a failed automatic login sends them to the log in page.
+      if (isRegister) router.push(`/login?next=${encodeURIComponent(next)}`);
+      else setError(toMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const otherHref = `/${isRegister ? "login" : "register"}?next=${encodeURIComponent(next)}`;
+
+  return (
+    <main className="flex min-h-dvh items-center justify-center bg-canvas px-4 py-10">
+      <section aria-labelledby="auth-title" className="w-full max-w-md rounded-2xl border border-line bg-card px-5 py-6 sm:px-8 sm:py-8">
+        <p className="font-display text-lg font-semibold text-accent-bright">Senzora</p>
+        <h1 id="auth-title" className="mt-3 font-display text-2xl font-semibold text-fg">
+          {isRegister ? "Create your account" : "Log in"}
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          {isRegister ? "An account keeps your assistant conversations saved." : "Log in to use the assistant and see your saved conversations."}
+        </p>
+
+        <form onSubmit={submit} noValidate className="mt-6 space-y-4">
+          {isRegister && <Field id="name" label="Name" type="text" value={name} onChange={setName} autoComplete="name" />}
+          <Field id="email" label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" />
+          <Field id="password" label="Password" type="password" value={password} onChange={setPassword} autoComplete={isRegister ? "new-password" : "current-password"} />
+
+          {error && (
+            <p role="alert" className="text-sm text-danger">
+              {error}
+            </p>
+          )}
+
+          <button type="submit" disabled={busy} className={`${primaryButton} w-full`}>
+            {busy ? "Please wait" : isRegister ? "Create account" : "Log in"}
+          </button>
+        </form>
+
+        <p className="mt-5 text-sm text-muted">
+          {isRegister ? "Already have an account? " : "No account yet? "}
+          <Link href={otherHref} className={textLink}>
+            {isRegister ? "Log in" : "Create one"}
+          </Link>
+        </p>
+        <p className="mt-2 text-sm text-muted">
+          Vitals, Insights and History work without an account.{" "}
+          <Link href="/dashboard" className={textLink}>
+            Back to the app
+          </Link>
+        </p>
+      </section>
+    </main>
+  );
+}

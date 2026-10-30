@@ -1,11 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Info, Send, Trash2 } from "lucide-react";
 import { primaryButton, secondaryButton, textLink } from "@/components/ui/buttons";
+import { ApiError } from "@/lib/api";
 import { askAssistant } from "@/lib/assistant";
+import { logout } from "@/lib/auth";
 import { useChat, useReadings } from "@/lib/hooks/useStoredData";
+import { getToken, loadUser } from "@/lib/session";
 import { appendChatMessage, clearChat, hasAssistantConsent, saveAssistantConsent } from "@/lib/storage";
 import type { ChatMessage } from "@/types";
 
@@ -20,6 +24,38 @@ const MAX_LENGTH = 500;
 const STORAGE_ERROR = "Couldn't save this chat. Your browser is blocking storage for this site, so the conversation can't be kept on this device.";
 const CONSENT_ERROR = "Couldn't save your choice. Your browser is blocking storage for this site, so your agreement can't be kept on this device.";
 
+function messageFor(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 401) return "Your login ended. Log in again to keep chatting.";
+    if (error.status === 404) return "The server no longer has this conversation, so your next message starts a new one. Send it again.";
+    if (error.status === 503) return "The assistant is unavailable right now. Try again in a moment.";
+    return error.message;
+  }
+  return "The assistant couldn't answer. Try again.";
+}
+
+function SignInNotice({ pathname }: { pathname: string }) {
+  const next = encodeURIComponent(pathname);
+  return (
+    <section aria-labelledby="signin-title" className="mx-auto max-w-2xl rounded-2xl border border-line bg-card px-5 py-6 sm:px-8 sm:py-8">
+      <h2 id="signin-title" className="font-display text-xl font-semibold text-fg">
+        Log in to use the assistant
+      </h2>
+      <p className="mt-3 text-sm leading-relaxed text-muted">
+        Your conversations are saved in your Senzora account, so the assistant needs to know who you are. Your vitals, Insights and History keep working without an account.
+      </p>
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <Link href={`/login?next=${next}`} className={primaryButton}>
+          Log in
+        </Link>
+        <Link href={`/register?next=${next}`} className={secondaryButton}>
+          Create account
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 function ConsentNotice({ onAgree }: { onAgree: () => boolean }) {
   const [failed, setFailed] = useState(false);
 
@@ -28,11 +64,6 @@ function ConsentNotice({ onAgree }: { onAgree: () => boolean }) {
       <h2 id="consent-title" className="font-display text-xl font-semibold text-fg">
         Before you use the assistant
       </h2>
-
-      {/* Remove this paragraph when the assistant is connected to the API. */}
-      <p className="mt-3 rounded-xl border border-dashed border-line px-3.5 py-2.5 text-sm text-muted">
-        Prototype note: this describes the connected assistant. The prototype you are using today sends nothing.
-      </p>
 
       <div className="mt-5 space-y-5 text-sm leading-relaxed text-muted">
         <div>
@@ -76,18 +107,24 @@ function ConsentNotice({ onAgree }: { onAgree: () => boolean }) {
 }
 
 export function ChatView() {
+  const pathname = usePathname();
   const { ready, messages } = useChat();
   const { readings } = useReadings();
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [failedText, setFailedText] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [consent, setConsent] = useState<"checking" | "given" | "missing">("checking");
+  const [session, setSession] = useState<"checking" | "in" | "out">("checking");
+  const [userName, setUserName] = useState("");
   const [includeReadings, setIncludeReadings] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setConsent(hasAssistantConsent() ? "given" : "missing");
+    setSession(getToken() ? "in" : "out");
+    setUserName(loadUser()?.name ?? "");
   }, []);
 
   useEffect(() => {
@@ -95,7 +132,7 @@ export function ChatView() {
     if (list) list.scrollTop = list.scrollHeight;
   }, [messages.length, sending]);
 
-  if (!ready || consent === "checking") {
+  if (!ready || consent === "checking" || session === "checking") {
     return (
       <div aria-busy="true" className="rounded-2xl border border-line bg-card px-6 py-16 text-center text-sm text-muted">
         Opening your conversation
@@ -103,28 +140,37 @@ export function ChatView() {
     );
   }
 
+  if (session === "out") return <SignInNotice pathname={pathname} />;
+
   if (consent === "missing") {
     return <ConsentNotice onAgree={() => (saveAssistantConsent() ? (setConsent("given"), true) : false)} />;
   }
 
-  async function send(text: string) {
+  async function send(text: string, retry = false) {
     const content = text.trim();
     if (!content || sending) return;
 
-    const question: ChatMessage = { id: crypto.randomUUID(), role: "user", content, createdAt: new Date().toISOString() };
-    if (!appendChatMessage(question)) {
-      setError(STORAGE_ERROR);
-      return;
+    if (!retry) {
+      const question: ChatMessage = { id: crypto.randomUUID(), role: "user", content, createdAt: new Date().toISOString() };
+      if (!appendChatMessage(question)) {
+        setError(STORAGE_ERROR);
+        return;
+      }
+      setDraft("");
     }
-    setDraft("");
+
     setError("");
+    setFailedText(null);
     setConfirmClear(false);
     setSending(true);
     try {
-      const reply = await askAssistant([...messages, question], includeReadings ? readings : []);
+      const reply = await askAssistant(content, includeReadings ? readings : []);
       if (!appendChatMessage(reply)) setError(STORAGE_ERROR);
-    } catch {
-      setError("The assistant couldn't answer. Send your message again.");
+    } catch (err) {
+      setError(messageFor(err));
+      // A 401 clears the saved login, so the page falls back to the log in notice.
+      if (getToken() === null) setSession("out");
+      else setFailedText(content);
     } finally {
       setSending(false);
     }
@@ -137,32 +183,45 @@ export function ChatView() {
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
         <p className="flex items-center gap-2 text-sm text-muted">
           <Info className="size-4 shrink-0 text-accent-bright" aria-hidden="true" />
-          Prototype assistant. Replies are written on this device from your saved readings. Nothing is sent anywhere.
+          {userName ? `Logged in as ${userName}. ` : "Logged in. "}Replies come from an AI model and are general information.
         </p>
-        {!empty &&
-          (confirmClear ? (
-            <div role="group" aria-label="Confirm starting a new chat" className="flex items-center gap-2">
-              <span className="text-sm text-fg">Delete this conversation?</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmClear(false);
-                  if (!clearChat()) setError(STORAGE_ERROR);
-                }}
-                className={`${secondaryButton} px-3! py-1.5!`}
-              >
-                Delete chat
+        <div className="flex flex-wrap items-center gap-2">
+          {!empty &&
+            (confirmClear ? (
+              <div role="group" aria-label="Confirm starting a new chat" className="flex items-center gap-2">
+                <span className="text-sm text-fg">Delete this conversation?</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmClear(false);
+                    if (!clearChat()) setError(STORAGE_ERROR);
+                  }}
+                  className={`${secondaryButton} px-3! py-1.5!`}
+                >
+                  Delete chat
+                </button>
+                <button type="button" onClick={() => setConfirmClear(false)} className={`${secondaryButton} px-3! py-1.5!`}>
+                  Keep it
+                </button>
+              </div>
+            ) : (
+              <button type="button" disabled={sending} onClick={() => setConfirmClear(true)} className={`${secondaryButton} px-3! py-1.5!`}>
+                <Trash2 className="size-3.5" aria-hidden="true" />
+                New chat
               </button>
-              <button type="button" onClick={() => setConfirmClear(false)} className={`${secondaryButton} px-3! py-1.5!`}>
-                Keep it
-              </button>
-            </div>
-          ) : (
-            <button type="button" disabled={sending} onClick={() => setConfirmClear(true)} className={`${secondaryButton} px-3! py-1.5!`}>
-              <Trash2 className="size-3.5" aria-hidden="true" />
-              New chat
-            </button>
-          ))}
+            ))}
+          <button
+            type="button"
+            disabled={sending}
+            onClick={() => {
+              logout();
+              setSession("out");
+            }}
+            className={`${secondaryButton} px-3! py-1.5!`}
+          >
+            Log out
+          </button>
+        </div>
       </div>
 
       <div ref={listRef} role="log" aria-label="Conversation" className="flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-5">
@@ -171,8 +230,8 @@ export function ChatView() {
             <h2 className="font-display text-lg font-semibold text-fg">Ask about your readings or how you feel</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted">
               {readings.length > 0
-                ? "I can explain your saved heart rate and blood pressure, and talk through symptoms. I can't diagnose anything."
-                : "You have no saved readings yet, so I can only talk through symptoms for now. Record a reading to get answers about your vitals."}
+                ? "I can answer general health questions and talk through symptoms. Turn on the readings option below if you want me to explain your heart rate and blood pressure. I can't diagnose anything."
+                : "You have no saved readings yet, so I can only answer general health questions and talk through symptoms for now. Record a reading to get answers about your vitals."}
             </p>
             {readings.length === 0 && (
               <Link href="/vitals" className={`${textLink} mt-2`}>
@@ -231,9 +290,14 @@ export function ChatView() {
         className="border-t border-line p-3 sm:p-4"
       >
         {error && (
-          <p role="alert" className="mb-2 text-sm text-danger">
-            {error}
-          </p>
+          <div role="alert" className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-danger">
+            <p>{error}</p>
+            {failedText !== null && (
+              <button type="button" onClick={() => send(failedText, true)} disabled={sending} className={textLink}>
+                Try again
+              </button>
+            )}
+          </div>
         )}
 
         <label className="mb-3 flex items-start gap-2.5 text-sm text-fg">

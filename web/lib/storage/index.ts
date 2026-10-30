@@ -1,7 +1,13 @@
 import type { ChatMessage, Preferences, Reading, ReadingInput } from "@/types";
 
 const PREFIX = "senzora:";
-const KEYS = { readings: `${PREFIX}readings`, preferences: `${PREFIX}preferences`, chat: `${PREFIX}chat`, consent: `${PREFIX}consent` } as const;
+const KEYS = {
+  readings: `${PREFIX}readings`,
+  preferences: `${PREFIX}preferences`,
+  chat: `${PREFIX}chat`,
+  consent: `${PREFIX}consent`,
+  conversation: `${PREFIX}conversation`,
+} as const;
 const CHANGE_EVENT = "senzora:storage-change";
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -101,7 +107,38 @@ export const loadChat = (): ChatMessage[] => read(KEYS.chat, [], isChatList);
 /** Adds one message and keeps only the newest ones, so the chat can never fill up storage. */
 export const appendChatMessage = (message: ChatMessage): boolean => write(KEYS.chat, [...loadChat(), message].slice(-MAX_CHAT_MESSAGES));
 
-export const clearChat = (): boolean => write(KEYS.chat, []);
+/** The id of the server-side conversation this chat belongs to. A new chat has none. */
+export const loadConversationId = (): number | null => {
+  try {
+    const value = Number(window.localStorage.getItem(KEYS.conversation));
+    return Number.isInteger(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
+};
+
+export const saveConversationId = (id: number): boolean => {
+  try {
+    window.localStorage.setItem(KEYS.conversation, String(id));
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const clearConversationId = (): void => {
+  try {
+    window.localStorage.removeItem(KEYS.conversation);
+  } catch {
+    /* nothing to clear if storage is unavailable */
+  }
+};
+
+/** Starting a new chat also forgets the server conversation, so the next message opens a new one. */
+export const clearChat = (): boolean => {
+  clearConversationId();
+  return write(KEYS.chat, []);
+};
 
 /** Subscribe to changes made in this tab or any other tab. Returns an unsubscribe function. */
 export function subscribeToStorage(onChange: () => void): () => void {
