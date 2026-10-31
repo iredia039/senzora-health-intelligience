@@ -1,10 +1,14 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import { Download, Moon, Sun } from "lucide-react";
 import { dangerButton, primaryButton, secondaryButton } from "@/components/ui/buttons";
+import { logout } from "@/lib/auth";
 import { readingsToCsv } from "@/lib/export/csv";
 import { downloadFile, todayStamp } from "@/lib/export/download";
+import { useSessionUser } from "@/lib/hooks/useSession";
 import { useChat, useHydrated, usePreferences, useReadings } from "@/lib/hooks/useStoredData";
 import { setTheme, useTheme } from "@/lib/hooks/useTheme";
 import {
@@ -18,9 +22,6 @@ import {
   withdrawAssistantConsent,
 } from "@/lib/storage";
 
-const NAME_MAX = 40;
-const inputClass = "w-full rounded-xl border border-line bg-canvas px-3.5 py-2.5 text-sm text-fg placeholder:text-muted aria-invalid:border-danger";
-
 function Card({ id, title, description, children }: { id: string; title: string; description?: string; children: React.ReactNode }) {
   return (
     <section aria-labelledby={id} className="rounded-2xl border border-line bg-card p-5">
@@ -33,61 +34,38 @@ function Card({ id, title, description, children }: { id: string; title: string;
   );
 }
 
-function ProfileCard() {
-  const prefs = usePreferences();
-  const [name, setName] = useState(prefs.displayName);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-
-  const save = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = name.trim();
-    if (trimmed === "") {
-      setError("Enter the name you want Senzora to show.");
-      setMessage("");
-      return;
-    }
-    const ok = savePreferences({ ...loadPreferences(), displayName: trimmed });
-    setError(ok ? "" : "Couldn't save your name. Your browser is blocking storage for this site.");
-    setMessage(ok ? "Name saved." : "");
-    if (ok) setName(trimmed);
-  };
+function AccountCard() {
+  const user = useSessionUser();
+  const pathname = usePathname();
+  const next = encodeURIComponent(pathname);
 
   return (
-    <Card id="profile-heading" title="Profile" description="This name appears in the sidebar and on your overview. It stays on this device.">
-      <form onSubmit={save} noValidate className="max-w-md space-y-3">
-        <div>
-          <label htmlFor="display-name" className="block text-sm font-medium text-fg">
-            Display name
-          </label>
-          <input
-            id="display-name"
-            value={name}
-            maxLength={NAME_MAX}
-            autoComplete="off"
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? "display-name-error" : "age-note"}
-            onChange={(e) => setName(e.target.value)}
-            className={`${inputClass} mt-1.5`}
-          />
-          {error && (
-            <p id="display-name-error" className="mt-1.5 text-sm text-danger">
-              {error}
-            </p>
-          )}
-        </div>
-        <p id="age-note" className="text-xs leading-relaxed text-muted">
-          Senzora&apos;s analysis rules are written for adults only. Other age groups are not supported yet.
-        </p>
+    <Card
+      id="account-heading"
+      title="Account"
+      description="An account keeps your assistant conversations saved. Vitals, Insights and History work without one."
+    >
+      {user ? (
         <div className="flex flex-wrap items-center gap-3">
-          <button type="submit" className={primaryButton}>
-            Save name
-          </button>
-          <p role="status" className="text-sm text-muted">
-            {message}
+          <p className="text-sm text-fg">
+            Logged in as <span className="font-medium">{user.name}</span>.
           </p>
+          <button type="button" onClick={logout} className={secondaryButton}>
+            Log out
+          </button>
         </div>
-      </form>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="w-full text-sm text-muted">You are not logged in.</p>
+          <Link href={`/login?next=${next}`} className={primaryButton}>
+            Log in
+          </Link>
+          <Link href={`/register?next=${next}`} className={secondaryButton}>
+            Create account
+          </Link>
+        </div>
+      )}
+      <p className="mt-4 text-xs leading-relaxed text-muted">Senzora&apos;s analysis rules are written for adults only. Other age groups are not supported yet.</p>
     </Card>
   );
 }
@@ -183,10 +161,17 @@ function PrivacyCard() {
   return (
     <Card id="privacy-heading" title="Privacy">
       <ul className="max-w-2xl list-disc space-y-2 pl-5 text-sm leading-relaxed text-muted">
-        <li>Your readings, name, settings and assistant chat are saved in this browser on this device. There is no account and nothing is uploaded.</li>
-        <li>The assistant is a prototype. It writes its replies on this device from your saved readings and sends nothing to an online service.</li>
+        <li>Your readings, settings and theme are saved in this browser on this device. They are not uploaded to your account.</li>
+        <li>If you create an account, your name and email are stored on the Senzora server, together with your assistant conversations.</li>
+        <li>
+          When you use the assistant, your messages are sent over the internet to an AI provider (OpenRouter and the AI model behind it), which may keep what it receives. Your
+          readings are included only while the option under the message box is on.
+        </li>
         <li>Find Care uses your location only while you search, and never saves it.</li>
-        <li>Clearing your browser data, or using Delete everything below, removes it all. Someone else using this browser profile could see it.</li>
+        <li>
+          Delete everything below clears what is saved in this browser. It does not delete your account or the conversations saved on the server. Someone else using this browser
+          profile could see what is saved here.
+        </li>
         <li>Senzora gives general information, not a diagnosis. It does not replace a health professional.</li>
       </ul>
     </Card>
@@ -238,7 +223,8 @@ function DataCard() {
       <div className="mt-6 border-t border-line pt-5">
         <h3 className="text-sm font-medium text-fg">Delete everything</h3>
         <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted">
-          Removes all readings, your chat, your name and your theme from this device. This can&apos;t be undone, so export first if you want a copy.
+          Removes all readings, the chat shown on this device and your theme from this browser. Your account and the conversations saved on the server stay. This can&apos;t be
+          undone, so export first if you want a copy.
         </p>
         {confirming ? (
           <div role="group" aria-label="Confirm deleting all data" className="mt-3 flex flex-wrap items-center gap-2">
@@ -277,7 +263,7 @@ export function SettingsView() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <ProfileCard />
+      <AccountCard />
       <AppearanceCard />
       <NotificationsCard />
       <AssistantConsentCard />

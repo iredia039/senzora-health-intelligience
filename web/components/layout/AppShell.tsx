@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Menu, X } from "lucide-react";
+import { Bell, Menu, User, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Logo } from "@/components/brand/Logo";
 import { NAV_ITEMS } from "./nav";
 import { countRecentFlags } from "@/lib/analysis";
 import { useHydrated, usePreferences, useReadings } from "@/lib/hooks/useStoredData";
+import { useSessionUser } from "@/lib/hooks/useSession";
 import { ThemeToggle } from "./ThemeToggle";
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
@@ -38,19 +39,38 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 function ProfileCard({ onNavigate }: { onNavigate?: () => void }) {
-  const { displayName } = usePreferences();
+  const hydrated = useHydrated();
+  const user = useSessionUser();
+  const pathname = usePathname();
+
+  // Nothing is shown until the browser has checked for a login, so a name never flashes in or out.
+  if (!hydrated) return <div aria-hidden="true" className="h-[3.625rem] rounded-xl border border-line bg-card" />;
+
+  const box = "flex items-center gap-3 rounded-xl border border-line bg-card px-3 py-2.5 transition-colors hover:bg-raised";
+  const avatar = "grid size-9 place-items-center rounded-full bg-accent/15 text-sm font-semibold text-accent-bright";
+
+  if (!user) {
+    return (
+      <Link href={`/login?next=${encodeURIComponent(pathname)}`} onClick={onNavigate} className={box}>
+        <span className={avatar} aria-hidden="true">
+          <User className="size-4" />
+        </span>
+        <span className="leading-tight">
+          <span className="block text-sm font-medium text-fg">Log in</span>
+          <span className="block text-xs text-muted">to use the assistant</span>
+        </span>
+      </Link>
+    );
+  }
+
   return (
-    <Link
-      href="/settings"
-      onClick={onNavigate}
-      className="flex items-center gap-3 rounded-xl border border-line bg-card px-3 py-2.5 transition-colors hover:bg-raised"
-    >
-      <span className="grid size-9 place-items-center rounded-full bg-accent/15 text-sm font-semibold text-accent-bright" aria-hidden="true">
-        {displayName.trim().charAt(0).toUpperCase() || "S"}
+    <Link href="/settings" onClick={onNavigate} className={box}>
+      <span className={avatar} aria-hidden="true">
+        {user.name.trim().charAt(0).toUpperCase() || "S"}
       </span>
       <span className="leading-tight">
-        <span className="block text-sm font-medium text-fg">{displayName}</span>
-        <span className="block text-xs text-muted">Saved on this device</span>
+        <span className="block text-sm font-medium text-fg">{user.name}</span>
+        <span className="block text-xs text-muted">Logged in</span>
       </span>
     </Link>
   );
