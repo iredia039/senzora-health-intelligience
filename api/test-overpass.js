@@ -26,5 +26,5 @@ async function test() {
 // test()
 const { fetchNearbyFacilities, toFacility } = require("./utils/overpass");
 
-console.log(toFacility({ type: "node", id: 1, lat: 9.06, lon: 7.42, tags: { amenity: "hospital", name: "Kobe Clinic", emergency: "yes", opening_hours: "24/7", "addr:suburb": "Garki" } }));
-console.log(toFacility({ type: "node", id: 2, lat: 9.06, lon: 7.42, tags: { amenity: "clinic", name: "Mabushi Clinic" } }));
+console.log(toFacility({ type: "node", id: 1, lat: 9.06, lon: 7.42, tags: { amenity: "clinic", name: "Kobe Clinic", "addr:housenumber": "12", "addr:street": "Aminu Kano Crescent", "addr:city": "Abuja" } }).address);
+console.log(toFacility({ type: "node", id: 2, lat: 9.06, lon: 7.42, tags: { amenity: "clinic", name: "Mabushi Clinic" } }).address);

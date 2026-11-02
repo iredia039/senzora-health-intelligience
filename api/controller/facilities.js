@@ -1,5 +1,6 @@
 const data = require('../data/facilities')
 const { distance } = require('../utils/distance')
+const { fetchNearbyFacilities, toFacility } = require("./utils/overpass");
 
 /**
  * @param {import('express').Request} req

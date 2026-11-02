@@ -62,7 +62,8 @@ function toFacility(element) {
         lng,
         area: tags['addr:suburb'] || tags['addr:city'] || '',
         emergency: tags.emergency === 'yes',
-        open24h: tags.opening_hours === '24/7'
+        open24h: tags.opening_hours === '24/7',
+        address:[tags["addr:housenumber"], tags["addr:street"], tags["addr:city"]].filter(Boolean).join(' ') || 'Address not listed'
     }
 }
 
