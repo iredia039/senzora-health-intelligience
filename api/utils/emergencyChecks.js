@@ -185,6 +185,20 @@ function checkReadings(readings) {
                 reply: `Your heart rate reading of ${r.bpm} bpm is in a range that needs urgent medical attention. Please get medical help now: call your local emergency number or go to the nearest hospital. ${emergencyNumbers}`
             }
         }
+
+        if (r.type === 'blood_oxygen' && r.spo2 <= 90) {
+            return {
+                kind: 'medical',
+                reply: `Your blood oxygen reading of ${r.spo2}% is in a range that needs urgent medical attention. Please get medical help now: call your local emergency number or go to the nearest hospital. ${emergencyNumbers}`
+            }
+        }
+
+        if (r.type === 'body_temperature' && (r.celsius >= 39.5 || r.celsius <= 35)) {
+            return {
+                kind: 'medical',
+                reply: `Your body temperature reading of ${r.celsius} °C is in a range that needs urgent medical attention. Please get medical help now: call your local emergency number or go to the nearest hospital. ${emergencyNumbers}`
+            }
+        }
     }
 
     return null

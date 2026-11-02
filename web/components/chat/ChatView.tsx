@@ -34,13 +34,18 @@ function messageFor(error: unknown): string {
   return "The assistant couldn't answer. Try again.";
 }
 
-function SignInNotice({ pathname }: { pathname: string }) {
+function SignInNotice({ pathname, notice }: { pathname: string; notice: string }) {
   const next = encodeURIComponent(pathname);
   return (
     <section aria-labelledby="signin-title" className="mx-auto max-w-2xl rounded-2xl border border-line bg-card px-5 py-6 sm:px-8 sm:py-8">
       <h2 id="signin-title" className="font-display text-xl font-semibold text-fg">
         Log in to use the assistant
       </h2>
+      {notice && (
+        <p role="alert" className="mt-3 text-sm text-danger">
+          {notice}
+        </p>
+      )}
       <p className="mt-3 text-sm leading-relaxed text-muted">
         Your conversations are saved in your Senzora account, so the assistant needs to know who you are. Your vitals, Insights and History keep working without an account.
       </p>
@@ -119,12 +124,17 @@ export function ChatView() {
   const [session, setSession] = useState<"checking" | "in" | "out">("checking");
   const [userName, setUserName] = useState("");
   const [includeReadings, setIncludeReadings] = useState(false);
+  const [loginNotice, setLoginNotice] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setConsent(hasAssistantConsent() ? "given" : "missing");
-    setSession(getToken() ? "in" : "out");
-    setUserName(loadUser()?.name ?? "");
+    // Defer browser-storage hydration so this effect only synchronizes with the client environment.
+    const task = window.setTimeout(() => {
+      setConsent(hasAssistantConsent() ? "given" : "missing");
+      setSession(getToken() ? "in" : "out");
+      setUserName(loadUser()?.name ?? "");
+    }, 0);
+    return () => window.clearTimeout(task);
   }, []);
 
   useEffect(() => {
@@ -140,7 +150,7 @@ export function ChatView() {
     );
   }
 
-  if (session === "out") return <SignInNotice pathname={pathname} />;
+  if (session === "out") return <SignInNotice pathname={pathname} notice={loginNotice} />;
 
   if (consent === "missing") {
     return <ConsentNotice onAgree={() => (saveAssistantConsent() ? (setConsent("given"), true) : false)} />;
@@ -167,10 +177,14 @@ export function ChatView() {
       const reply = await askAssistant(content, includeReadings ? readings : []);
       if (!appendChatMessage(reply)) setError(STORAGE_ERROR);
     } catch (err) {
-      setError(messageFor(err));
-      // A 401 clears the saved login, so the page falls back to the log in notice.
-      if (getToken() === null) setSession("out");
-      else setFailedText(content);
+      // A 401 clears the saved login, so the page falls back to the log in notice with the reason shown there.
+      if (getToken() === null) {
+        setLoginNotice(messageFor(err));
+        setSession("out");
+      } else {
+        setError(messageFor(err));
+        setFailedText(content);
+      }
     } finally {
       setSending(false);
     }
@@ -179,7 +193,7 @@ export function ChatView() {
   const empty = messages.length === 0;
 
   return (
-    <div className="flex h-[calc(100dvh-10rem)] min-h-[32rem] flex-col rounded-2xl border border-line bg-card">
+    <div className="flex h-[calc(100dvh-10rem)] min-h-[32rem] flex-col overflow-hidden rounded-3xl border border-line bg-card shadow-[0_22px_54px_-42px_var(--accent)]">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
         <p className="flex items-center gap-2 text-sm text-muted">
           <Info className="size-4 shrink-0 text-accent-bright" aria-hidden="true" />

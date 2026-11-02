@@ -1,20 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Gauge, HeartPulse, Pencil, Search, Trash2 } from "lucide-react";
+import { Pencil, Search, Trash2 } from "lucide-react";
+import { VitalIcon } from "@/components/ui/VitalIcon";
 import { dangerButton, secondaryButton, textLink } from "@/components/ui/buttons";
-import { SOURCE_LABEL, formatWhen, readingName, readingValue } from "@/lib/format";
+import { SOURCE_LABEL, VITAL_LABEL, VITAL_ORDER, formatWhen, readingName, readingValue } from "@/lib/format";
 import { useReadings } from "@/lib/hooks/useStoredData";
 import { addDemoReadings, deleteReading, removeDemoReadings } from "@/lib/storage";
-import type { Reading } from "@/types";
+import type { Reading, VitalType } from "@/types";
 import { ReadingForm } from "./ReadingForm";
 
-type Filter = "all" | "heart_rate" | "blood_pressure";
+type Filter = "all" | VitalType;
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: "all", label: "All" },
-  { id: "heart_rate", label: "Heart rate" },
-  { id: "blood_pressure", label: "Blood pressure" },
+  ...VITAL_ORDER.map((type) => ({ id: type, label: VITAL_LABEL[type] })),
 ];
 
 const searchText = (r: Reading) =>
@@ -64,8 +64,8 @@ export function VitalsView() {
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-5">
-      <section id="reading-form" aria-labelledby="form-heading" className="rounded-2xl border border-line bg-card p-5 lg:col-span-2 lg:self-start">
+    <div className="biometric-workspace grid gap-4 lg:grid-cols-5">
+      <section id="reading-form" aria-labelledby="form-heading" className="rounded-3xl border border-line bg-card p-5 lg:col-span-2 lg:self-start">
         <h2 id="form-heading" className="font-display text-lg font-semibold text-fg">
           {editing ? `Edit ${readingName(editing).toLowerCase()} reading` : "Record a vital"}
         </h2>
@@ -81,7 +81,7 @@ export function VitalsView() {
         />
       </section>
 
-      <section aria-labelledby="list-heading" className="rounded-2xl border border-line bg-card p-5 lg:col-span-3">
+      <section aria-labelledby="list-heading" className="rounded-3xl border border-line bg-card p-5 lg:col-span-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 id="list-heading" className="font-display text-lg font-semibold text-fg">
             Saved readings
@@ -124,7 +124,7 @@ export function VitalsView() {
                   className="w-full rounded-xl border border-line bg-canvas py-2.5 pl-10 pr-3.5 text-sm text-fg placeholder:text-muted"
                 />
               </div>
-              <div role="group" aria-label="Filter by vital" className="flex rounded-xl border border-line bg-canvas p-1">
+              <div role="group" aria-label="Filter by vital" className="flex flex-wrap rounded-xl border border-line bg-canvas p-1">
                 {FILTERS.map(({ id, label }) => (
                   <button
                     key={id}
@@ -168,11 +168,7 @@ export function VitalsView() {
                     <li key={r.id} className="py-4">
                       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
                         <div className="flex min-w-0 items-start gap-3">
-                          {r.type === "heart_rate" ? (
-                            <HeartPulse className="mt-0.5 size-4 shrink-0 text-accent-bright" aria-hidden="true" />
-                          ) : (
-                            <Gauge className="mt-0.5 size-4 shrink-0 text-accent-bright" aria-hidden="true" />
-                          )}
+                          <VitalIcon type={r.type} className="mt-0.5 size-4 shrink-0 text-accent-bright" />
                           <div className="min-w-0">
                             <p className="font-display text-base font-semibold text-fg">
                               {readingValue(r)} <span className="text-sm font-normal text-muted">{readingName(r)}</span>

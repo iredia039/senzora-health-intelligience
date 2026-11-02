@@ -1,3 +1,4 @@
+import { VITAL_NAME, readingValue, withUnit } from "@/lib/format";
 import type { Insight, InsightStatus, Reading, VitalType } from "@/types";
 
 /**
@@ -11,6 +12,10 @@ export const THRESHOLDS = {
     low: { systolic: 90, diastolic: 60 },
   },
   heartRate: { urgentLow: 40, low: 60, high: 100, urgentHigh: 140 },
+  /** Degrees Celsius. At or above `high` is a fever; below `low` is flagged. */
+  bodyTemperature: { urgentLow: 35, low: 36, high: 38, urgentHigh: 40 },
+  /** Oxygen saturation in percent. At or below `urgent` is urgent; below `low` is flagged. */
+  bloodOxygen: { urgent: 92, low: 95 },
 } as const;
 
 /** How many of the newest readings of one vital an insight looks at. */
@@ -21,29 +26,60 @@ export type ReadingFlag = { level: Level; direction: "high" | "low" | "ok"; reas
 
 const NORMAL_BP = `${THRESHOLDS.bloodPressure.low.systolic}/${THRESHOLDS.bloodPressure.low.diastolic} to just under ${THRESHOLDS.bloodPressure.caution.systolic}/${THRESHOLDS.bloodPressure.caution.diastolic}`;
 const NORMAL_HR = `${THRESHOLDS.heartRate.low} to ${THRESHOLDS.heartRate.high} bpm`;
+const deg = (n: number) => n.toFixed(1);
+const NORMAL_TEMP = `${deg(THRESHOLDS.bodyTemperature.low)} to just under ${deg(THRESHOLDS.bodyTemperature.high)} \u00B0C`;
 
-/** Looks at one reading on its own and says whether it has crossed a line. */
-export function classifyReading(r: Reading): ReadingFlag {
-  if (r.type === "heart_rate") {
-    const t = THRESHOLDS.heartRate;
-    if (r.bpm >= t.urgentHigh) return { level: "urgent", direction: "high", reason: `is at or above ${t.urgentHigh} bpm, the urgent line` };
-    if (r.bpm <= t.urgentLow) return { level: "urgent", direction: "low", reason: `is at or below ${t.urgentLow} bpm, the urgent line` };
-    if (r.bpm > t.high) return { level: "caution", direction: "high", reason: `is above the typical resting range of ${NORMAL_HR}` };
-    if (r.bpm < t.low) return { level: "caution", direction: "low", reason: `is below the typical resting range of ${NORMAL_HR}` };
-    return { level: "normal", direction: "ok", reason: `is within the typical resting range of ${NORMAL_HR}` };
-  }
+function classifyHeartRate(bpm: number): ReadingFlag {
+  const t = THRESHOLDS.heartRate;
+  if (bpm >= t.urgentHigh) return { level: "urgent", direction: "high", reason: `is at or above ${t.urgentHigh} bpm, the urgent line` };
+  if (bpm <= t.urgentLow) return { level: "urgent", direction: "low", reason: `is at or below ${t.urgentLow} bpm, the urgent line` };
+  if (bpm > t.high) return { level: "caution", direction: "high", reason: `is above the typical resting range of ${NORMAL_HR}` };
+  if (bpm < t.low) return { level: "caution", direction: "low", reason: `is below the typical resting range of ${NORMAL_HR}` };
+  return { level: "normal", direction: "ok", reason: `is within the typical resting range of ${NORMAL_HR}` };
+}
 
+function classifyBloodPressure(systolic: number, diastolic: number): ReadingFlag {
   const t = THRESHOLDS.bloodPressure;
-  if (r.systolic >= t.urgent.systolic || r.diastolic >= t.urgent.diastolic) {
+  if (systolic >= t.urgent.systolic || diastolic >= t.urgent.diastolic) {
     return { level: "urgent", direction: "high", reason: `is at or above ${t.urgent.systolic}/${t.urgent.diastolic}, the urgent line` };
   }
-  if (r.systolic >= t.caution.systolic || r.diastolic >= t.caution.diastolic) {
+  if (systolic >= t.caution.systolic || diastolic >= t.caution.diastolic) {
     return { level: "caution", direction: "high", reason: `is at or above ${t.caution.systolic}/${t.caution.diastolic}, the line where readings are flagged` };
   }
-  if (r.systolic < t.low.systolic || r.diastolic < t.low.diastolic) {
+  if (systolic < t.low.systolic || diastolic < t.low.diastolic) {
     return { level: "caution", direction: "low", reason: `is below ${t.low.systolic}/${t.low.diastolic}` };
   }
   return { level: "normal", direction: "ok", reason: `is within the range this app treats as normal (${NORMAL_BP})` };
+}
+
+function classifyTemperature(celsius: number): ReadingFlag {
+  const t = THRESHOLDS.bodyTemperature;
+  if (celsius >= t.urgentHigh) return { level: "urgent", direction: "high", reason: `is at or above ${deg(t.urgentHigh)} \u00B0C, the urgent line` };
+  if (celsius <= t.urgentLow) return { level: "urgent", direction: "low", reason: `is at or below ${deg(t.urgentLow)} \u00B0C, the urgent line` };
+  if (celsius >= t.high) return { level: "caution", direction: "high", reason: `is at or above ${deg(t.high)} \u00B0C, the line where a fever is flagged` };
+  if (celsius < t.low) return { level: "caution", direction: "low", reason: `is below the typical range of ${NORMAL_TEMP}` };
+  return { level: "normal", direction: "ok", reason: `is within the typical range of ${NORMAL_TEMP}` };
+}
+
+function classifyOxygen(spo2: number): ReadingFlag {
+  const t = THRESHOLDS.bloodOxygen;
+  if (spo2 <= t.urgent) return { level: "urgent", direction: "low", reason: `is at or below ${t.urgent}%, the urgent line` };
+  if (spo2 < t.low) return { level: "caution", direction: "low", reason: `is below ${t.low}%, the line where readings are flagged` };
+  return { level: "normal", direction: "ok", reason: `is ${t.low}% or higher, the range this app treats as normal` };
+}
+
+/** Looks at one reading on its own and says whether it has crossed a line. */
+export function classifyReading(r: Reading): ReadingFlag {
+  switch (r.type) {
+    case "heart_rate":
+      return classifyHeartRate(r.bpm);
+    case "blood_pressure":
+      return classifyBloodPressure(r.systolic, r.diastolic);
+    case "body_temperature":
+      return classifyTemperature(r.celsius);
+    case "blood_oxygen":
+      return classifyOxygen(r.spo2);
+  }
 }
 
 const byNewest = (a: Reading, b: Reading) => Date.parse(b.measuredAt) - Date.parse(a.measuredAt);
@@ -76,30 +112,43 @@ export type VitalSummary = {
   change?: { text: string; direction: "up" | "down" | "same" };
 };
 
-const numbers = (r: Reading): number[] => (r.type === "heart_rate" ? [r.bpm] : [r.systolic, r.diastolic]);
-const unitOf = (type: VitalType) => (type === "heart_rate" ? "bpm" : "mmHg");
-const sign = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `\u2212${Math.abs(n)}` : "0");
+function numbers(r: Reading): number[] {
+  switch (r.type) {
+    case "heart_rate":
+      return [r.bpm];
+    case "blood_pressure":
+      return [r.systolic, r.diastolic];
+    case "body_temperature":
+      return [r.celsius];
+    case "blood_oxygen":
+      return [r.spo2];
+  }
+}
 
 export function summarize(readings: Reading[], type: VitalType): VitalSummary {
   const list = ofType(readings, type).sort((a, b) => -byNewest(a, b));
   if (list.length === 0) return { type, count: 0, readings: list };
 
-  const unit = unitOf(type);
+  // Temperature keeps one decimal; every other vital is shown as whole numbers.
+  const digits = type === "body_temperature" ? 1 : 0;
+  const fix = (n: number) => n.toFixed(digits);
+  const sign = (n: number) => (n > 0 ? `+${fix(n)}` : n < 0 ? `\u2212${fix(Math.abs(n))}` : "0");
+
   const columns = numbers(list[0]).map((_, i) => list.map((r) => numbers(r)[i]));
-  const average = columns.map((c) => Math.round(c.reduce((a, b) => a + b, 0) / c.length)).join("/");
-  const range = columns.map((c) => `${Math.min(...c)}\u2013${Math.max(...c)}`).join(" / ");
+  const average = columns.map((c) => fix(c.reduce((a, b) => a + b, 0) / c.length)).join("/");
+  const range = columns.map((c) => `${fix(Math.min(...c))}\u2013${fix(Math.max(...c))}`).join(" / ");
   const latest = list[list.length - 1];
 
   let change: VitalSummary["change"];
   if (list.length >= 2) {
     const now = numbers(latest);
     const before = numbers(list[list.length - 2]);
-    const diffs = now.map((n, i) => n - before[i]);
+    const diffs = now.map((n, i) => Number((n - before[i]).toFixed(digits)));
     const first = diffs[0];
-    change = { text: `${diffs.map(sign).join("/")} ${unit}`, direction: first > 0 ? "up" : first < 0 ? "down" : "same" };
+    change = { text: withUnit(diffs.map(sign).join("/"), type), direction: first > 0 ? "up" : first < 0 ? "down" : "same" };
   }
 
-  return { type, count: list.length, readings: list, latest, average: `${average} ${unit}`, range: `${range} ${unit}`, change };
+  return { type, count: list.length, readings: list, latest, average: withUnit(average, type), range: withUnit(range, type), change };
 }
 
 /* ---- Insights: what the flags mean, in plain language ---- */
@@ -107,37 +156,64 @@ export function summarize(readings: Reading[], type: VitalType): VitalSummary {
 const STATUS_BY_LEVEL: Record<Level, InsightStatus> = { normal: "reassuring", caution: "caution", urgent: "urgent" };
 const LEVEL_RANK: Record<Level, number> = { normal: 0, caution: 1, urgent: 2 };
 
-const nameOf = (type: VitalType) => (type === "heart_rate" ? "heart rate" : "blood pressure");
-const valueOf = (r: Reading) => (r.type === "heart_rate" ? `${r.bpm} bpm` : `${r.systolic}/${r.diastolic} mmHg`);
+const KEEP_RECORDING = "Keep recording at similar times of day so changes show up early. Nothing needs to be done based on these readings alone.";
 
 function nextStepFor(type: VitalType, flag: ReadingFlag): string {
-  if (type === "blood_pressure") {
-    if (flag.level === "urgent") {
-      return "Sit down and rest for five minutes, then measure again. If it is still this high, or you have chest pain, a severe headache, shortness of breath, confusion or weakness, contact your local emergency service now.";
-    }
-    if (flag.direction === "low") {
-      return "Low readings matter more if you feel dizzy, faint or unusually tired. Measure again while seated and rested, and speak to a health professional if low readings keep appearing or you have those symptoms.";
-    }
-    if (flag.level === "caution") {
-      return "Rest seated for five minutes and measure again. If your readings stay at or above this line over several days, share your log with a doctor or pharmacist.";
-    }
-  } else {
-    if (flag.level === "urgent") {
-      return "Rest and measure again. If your heart rate stays this far outside the typical range, or you feel faint, have chest pain or find it hard to breathe, contact a health professional or your local emergency service now.";
-    }
-    if (flag.direction === "low") {
-      return "A low resting heart rate is common in people who exercise a lot. If that is not you, or you feel dizzy, faint or unusually tired, speak to a health professional.";
-    }
-    if (flag.level === "caution") {
-      return "Measure again after resting. Activity, caffeine, stress, fever and some medicines raise heart rate. If it keeps staying above the typical range at rest, or you feel unwell, speak to a health professional.";
-    }
+  switch (type) {
+    case "blood_pressure":
+      if (flag.level === "urgent") {
+        return "Sit down and rest for five minutes, then measure again. If it is still this high, or you have chest pain, a severe headache, shortness of breath, confusion or weakness, contact your local emergency service now.";
+      }
+      if (flag.direction === "low") {
+        return "Low readings matter more if you feel dizzy, faint or unusually tired. Measure again while seated and rested, and speak to a health professional if low readings keep appearing or you have those symptoms.";
+      }
+      if (flag.level === "caution") {
+        return "Rest seated for five minutes and measure again. If your readings stay at or above this line over several days, share your log with a doctor or pharmacist.";
+      }
+      break;
+
+    case "heart_rate":
+      if (flag.level === "urgent") {
+        return "Rest and measure again. If your heart rate stays this far outside the typical range, or you feel faint, have chest pain or find it hard to breathe, contact a health professional or your local emergency service now.";
+      }
+      if (flag.direction === "low") {
+        return "A low resting heart rate is common in people who exercise a lot. If that is not you, or you feel dizzy, faint or unusually tired, speak to a health professional.";
+      }
+      if (flag.level === "caution") {
+        return "Measure again after resting. Activity, caffeine, stress, fever and some medicines raise heart rate. If it keeps staying above the typical range at rest, or you feel unwell, speak to a health professional.";
+      }
+      break;
+
+    case "body_temperature":
+      if (flag.level === "urgent" && flag.direction === "high") {
+        return "Rest, drink fluids and measure again. A temperature this high needs medical advice today. Contact a health professional or your local emergency service now if you also have confusion, a stiff neck, trouble breathing, a rash that does not fade, or a seizure.";
+      }
+      if (flag.level === "urgent") {
+        return "A very low body temperature can be serious. Warm up with dry clothes and blankets, then measure again. Contact a health professional or your local emergency service now if it stays low, or you feel confused or very sleepy.";
+      }
+      if (flag.direction === "high") {
+        return "Rest, drink fluids and measure again in an hour. If you live where malaria is common, get tested rather than waiting. Seek care sooner if the fever rises, lasts more than a couple of days, or comes with a severe headache, trouble breathing or confusion.";
+      }
+      if (flag.level === "caution") {
+        return "A low reading is often a measuring problem, such as a cold room or a thermometer that was not touching the skin. Warm up and measure again. If it stays low or you feel unwell, speak to a health professional.";
+      }
+      break;
+
+    case "blood_oxygen":
+      if (flag.level === "urgent") {
+        return "Sit upright, rest, and measure again with warm, still hands and no nail polish. If it stays at or below this line, or you are short of breath, have chest pain, blue lips or confusion, contact your local emergency service now.";
+      }
+      if (flag.level === "caution") {
+        return "Rest, warm your hands and measure again. If readings keep staying below the typical range, or you feel short of breath, speak to a health professional. If you have a lung condition, follow the target your doctor gave you.";
+      }
+      break;
   }
-  return "Keep recording at similar times of day so changes show up early. Nothing needs to be done based on these readings alone.";
+  return KEEP_RECORDING;
 }
 
 function explanationFor(type: VitalType, recent: Reading[], flags: ReadingFlag[]): string {
-  const name = nameOf(type);
-  let text = `Your latest ${name} reading, ${valueOf(recent[0])}, ${flags[0].reason}.`;
+  const name = VITAL_NAME[type];
+  let text = `Your latest ${name} reading, ${readingValue(recent[0])}, ${flags[0].reason}.`;
 
   const flagged = flags.filter((f) => f.level !== "normal").length;
   const others = flags[0].level === "normal" ? flagged : flagged - 1;
@@ -154,6 +230,10 @@ function limitationsFor(type: VitalType, recent: Reading[]): string {
   const parts = ["This is general information for adults, not a diagnosis, and a single reading cannot diagnose anything."];
   if (recent.length === 1) parts.push("It is based on one reading, so there is no pattern to look at yet.");
   if (type === "heart_rate") parts.push("Senzora does not know whether you were resting when you measured.");
+  if (type === "body_temperature") parts.push("Senzora does not know where on the body you measured, or whether you had just exercised, eaten or been in a warm room.");
+  if (type === "blood_oxygen") {
+    parts.push("Pulse oximeters can read lower with cold fingers, nail polish or movement, and can be less accurate on darker skin. People with lung conditions may have a different target set by their doctor.");
+  }
   const demo = recent.filter((r) => r.source === "demo").length;
   if (demo === recent.length) parts.push("These readings are demo data, not yours.");
   else if (demo > 0) parts.push("Some of these readings are demo data, not yours.");
@@ -162,7 +242,7 @@ function limitationsFor(type: VitalType, recent: Reading[]): string {
 
 /** One insight for one vital, built from its newest readings. */
 export function buildInsight(readings: Reading[], type: VitalType): Insight {
-  const name = nameOf(type);
+  const name = VITAL_NAME[type];
   const recent = ofType(readings, type).sort(byNewest).slice(0, RECENT_COUNT);
 
   if (recent.length === 0) {

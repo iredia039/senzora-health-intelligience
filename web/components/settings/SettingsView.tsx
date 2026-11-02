@@ -262,7 +262,7 @@ export function SettingsView() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="settings-workspace mx-auto max-w-3xl space-y-4">
       <AccountCard />
       <AppearanceCard />
       <NotificationsCard />

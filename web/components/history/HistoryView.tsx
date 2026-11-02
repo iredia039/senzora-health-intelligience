@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Download, Gauge, HeartPulse, OctagonAlert, Plus, TriangleAlert } from "lucide-react";
+import { Download, OctagonAlert, Plus, TriangleAlert } from "lucide-react";
 import { LEVEL_LABEL } from "@/components/insights/InsightCard";
 import { VitalTrend } from "@/components/insights/VitalTrend";
+import { VitalIcon } from "@/components/ui/VitalIcon";
 import { primaryButton, secondaryButton, textLink } from "@/components/ui/buttons";
 import { classifyReading, summarize } from "@/lib/analysis";
 import { readingsToCsv } from "@/lib/export/csv";
 import { downloadFile, todayStamp } from "@/lib/export/download";
-import { SOURCE_LABEL, formatWhen, readingName, readingValue } from "@/lib/format";
+import { SOURCE_LABEL, VITAL_LABEL, VITAL_ORDER, formatWhen, readingName, readingValue } from "@/lib/format";
 import { DEFAULT_FILTERS, applyFilters, isFiltered, type HistoryFilters } from "@/lib/history";
 import { useReadings } from "@/lib/hooks/useStoredData";
 
@@ -54,8 +55,7 @@ export function HistoryView() {
 
   // Filtering reads the current time, so it only runs in the browser, never while prerendering.
   const visible = useMemo(() => (ready ? applyFilters(readings, filters) : []), [ready, readings, filters]);
-  const heart = useMemo(() => summarize(visible, "heart_rate"), [visible]);
-  const pressure = useMemo(() => summarize(visible, "blood_pressure"), [visible]);
+  const summaries = useMemo(() => VITAL_ORDER.map((type) => summarize(visible, type)).filter((s) => s.count > 0), [visible]);
 
   if (!ready) {
     return (
@@ -70,7 +70,7 @@ export function HistoryView() {
       <section className="flex flex-col items-center rounded-2xl border border-dashed border-line bg-card px-6 py-16 text-center">
         <h2 className="font-display text-lg font-semibold text-fg">No history yet</h2>
         <p className="mt-2 max-w-md text-sm leading-relaxed text-muted">
-          Every heart rate and blood pressure reading you save appears here. You can filter them, see the charts, and export them to CSV.
+          Every reading you save appears here. You can filter them, see the charts, and export them to CSV.
         </p>
         <Link href="/vitals" className={`${primaryButton} mt-6`}>
           <Plus className="size-4" aria-hidden="true" />
@@ -94,7 +94,7 @@ export function HistoryView() {
   const filtered = isFiltered(filters);
 
   return (
-    <div className="space-y-4">
+    <div className="records-workspace space-y-4">
       <section aria-labelledby="filters-heading" className="rounded-2xl border border-line bg-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 id="filters-heading" className="font-display text-lg font-semibold text-fg">
@@ -112,11 +112,7 @@ export function HistoryView() {
             label="Vital"
             value={filters.type}
             onChange={(v) => update("type", v)}
-            options={[
-              { value: "all", label: "All vitals" },
-              { value: "heart_rate", label: "Heart rate" },
-              { value: "blood_pressure", label: "Blood pressure" },
-            ]}
+            options={[{ value: "all", label: "All vitals" }, ...VITAL_ORDER.map((type) => ({ value: type, label: VITAL_LABEL[type] }))]}
           />
           <Select
             id="filter-range"
@@ -183,26 +179,17 @@ export function HistoryView() {
         </section>
       ) : (
         <>
-          {(pressure.count > 0 || heart.count > 0) && (
+          {summaries.length > 0 && (
             <div className="space-y-6">
-              {pressure.count > 0 && (
-                <div className="space-y-3">
+              {summaries.map((summary) => (
+                <div key={summary.type} className="space-y-3">
                   <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-fg">
-                    <Gauge className="size-5 text-accent-bright" aria-hidden="true" />
-                    Blood pressure
+                    <VitalIcon type={summary.type} className="size-5 text-accent-bright" />
+                    {VITAL_LABEL[summary.type]}
                   </h2>
-                  <VitalTrend summary={pressure} />
+                  <VitalTrend summary={summary} />
                 </div>
-              )}
-              {heart.count > 0 && (
-                <div className="space-y-3">
-                  <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-fg">
-                    <HeartPulse className="size-5 text-accent-bright" aria-hidden="true" />
-                    Heart rate
-                  </h2>
-                  <VitalTrend summary={heart} />
-                </div>
-              )}
+              ))}
             </div>
           )}
 
@@ -216,11 +203,7 @@ export function HistoryView() {
                 return (
                   <li key={r.id} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 py-4">
                     <div className="flex min-w-0 items-start gap-3">
-                      {r.type === "heart_rate" ? (
-                        <HeartPulse className="mt-0.5 size-4 shrink-0 text-accent-bright" aria-hidden="true" />
-                      ) : (
-                        <Gauge className="mt-0.5 size-4 shrink-0 text-accent-bright" aria-hidden="true" />
-                      )}
+                      <VitalIcon type={r.type} className="mt-0.5 size-4 shrink-0 text-accent-bright" />
                       <div className="min-w-0">
                         <p className="font-display text-base font-semibold text-fg">
                           {readingValue(r)} <span className="text-sm font-normal text-muted">{readingName(r)}</span>

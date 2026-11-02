@@ -49,8 +49,16 @@ async function chatbot(req, res) {
                 ) {
                     return res.status(400).json({ error: 'blood pressure reading needs numeric systolic and diastolic' })
                 }
+            } else if (r.type === "blood_oxygen") {
+                if (typeof r.spo2 !== "number" || !Number.isFinite(r.spo2) || r.spo2 < 50 || r.spo2 > 100) {
+                    return res.status(400).json({ error: 'blood oxygen reading needs spo2 from 50 to 100' })
+                }
+            } else if (r.type === "body_temperature") {
+                if (typeof r.celsius !== "number" || !Number.isFinite(r.celsius) || r.celsius < 30 || r.celsius > 45) {
+                    return res.status(400).json({ error: 'temperature reading needs celsius from 30 to 45' })
+                }
             } else {
-                return res.status(400).json({ error: 'reading type must be heart_rate or blood_pressure' })
+                return res.status(400).json({ error: 'reading type must be heart_rate, blood_pressure, blood_oxygen or body_temperature' })
             }
         }
     }
@@ -122,6 +130,12 @@ async function chatbot(req, res) {
         const lines = readings.map((r) => {
             if (r.type === "heart_rate") {
                 return `${r.measuredAt}: heart rate ${r.bpm} bpm`
+            }
+            if (r.type === "blood_oxygen") {
+                return `${r.measuredAt}: blood oxygen ${r.spo2}%`
+            }
+            if (r.type === "body_temperature") {
+                return `${r.measuredAt}: body temperature ${r.celsius} °C`
             }
             return `${r.measuredAt}: blood pressure ${r.systolic}/${r.diastolic} mmHg`
         })

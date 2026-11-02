@@ -1,266 +1,68 @@
 "use client";
 
 import Link from "next/link";
-import { Activity, ArrowRight, ClipboardList, Gauge, HeartPulse, MessageCircle, Plus, type LucideIcon } from "lucide-react";
+import { Activity, ArrowRight, Bot, Droplets, Gauge, HeartPulse, MapPin, Plus, Thermometer } from "lucide-react";
+import { classifyReading } from "@/lib/analysis";
+import { VITAL_LABEL, VITAL_ORDER, formatWhen, readingName, readingValue } from "@/lib/format";
+import { useSessionUser } from "@/lib/hooks/useSession";
+import { useReadings } from "@/lib/hooks/useStoredData";
 import { primaryButton, secondaryButton, textLink } from "@/components/ui/buttons";
-import { useReadings, usePreferences } from "@/lib/hooks/useStoredData";
-import type { BloodPressureReading, HeartRateReading, Reading, ReadingSource } from "@/types";
+import type { HeartRateReading, Reading, VitalType } from "@/types";
 import { TrendsCard } from "./TrendsCard";
 
-const SOURCE_LABEL: Record<ReadingSource, string> = { manual: "Entered by you", device: "Device", demo: "Demo data" };
+const STATUS_COPY = { normal: "Within app range", caution: "Needs attention", urgent: "Urgent" } as const;
 
-const formatWhen = (iso: string) =>
-  new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-
-const readingValue = (r: Reading) => (r.type === "heart_rate" ? `${r.bpm} bpm` : `${r.systolic}/${r.diastolic} mmHg`);
-const readingName = (r: Reading) => (r.type === "heart_rate" ? "Heart rate" : "Blood pressure");
-
-function SourceBadge({ source }: { source: ReadingSource }) {
-  return (
-    <span
-      className={`rounded-md border px-1.5 py-0.5 text-[0.7rem] font-medium text-muted ${
-        source === "demo" ? "border-dashed border-muted" : "border-line"
-      }`}
-    >
-      {SOURCE_LABEL[source]}
-    </span>
-  );
+function Sparkline({ readings }: { readings: HeartRateReading[] }) {
+  const points = readings.slice(0, 18).reverse();
+  if (points.length < 2) return <div className="cardiac-empty"><HeartPulse className="size-5" /><span>{points.length === 1 ? "One saved reading — add another to reveal a trend." : "Your saved heart-rate trend will appear here."}</span></div>;
+  const values = points.map((point) => point.bpm);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const polyline = points.map((point, index) => `${index * (100 / (points.length - 1))},${88 - ((point.bpm - min) / Math.max(max - min, 1)) * 68}`).join(" ");
+  return <svg className="cardiac-sparkline" viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label={`Trend across ${points.length} saved heart-rate readings`}><line x1="0" x2="100" y1="20" y2="20" /><line x1="0" x2="100" y1="54" y2="54" /><line x1="0" x2="100" y1="88" y2="88" /><polyline points={polyline} /></svg>;
 }
 
-function Card({ className = "", children, labelledBy }: { className?: string; children: React.ReactNode; labelledBy?: string }) {
-  return (
-    <section aria-labelledby={labelledBy} className={`rounded-2xl border border-line bg-card p-5 ${className}`}>
-      {children}
-    </section>
-  );
+function VitalIcon({ type }: { type: VitalType }) {
+  const Icon = type === "heart_rate" ? HeartPulse : type === "blood_pressure" ? Gauge : type === "body_temperature" ? Thermometer : Droplets;
+  return <Icon className="size-4" aria-hidden="true" />;
 }
 
-function CardHeading({ id, title, action }: { id: string; title: string; action?: { href: string; label: string } }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <h2 id={id} className="font-display text-lg font-semibold text-fg">{title}</h2>
-      {action && (
-        <Link href={action.href} className={textLink}>
-          {action.label}
-          <ArrowRight className="size-3.5" aria-hidden="true" />
-        </Link>
-      )}
-    </div>
-  );
+function CompactVital({ reading, previous }: { reading?: Reading; previous?: Reading }) {
+  if (!reading) return <article className="rail-vital rail-vital--empty"><span className="rail-vital__icon"><Activity className="size-4" /></span><div><p className="rail-vital__label">No measurement</p><h3>Record {"a vital"}</h3><Link href="/vitals" className={textLink}>Add record <ArrowRight className="size-3" /></Link></div></article>;
+  const flag = classifyReading(reading);
+  return <article className="rail-vital"><span className="rail-vital__icon"><VitalIcon type={reading.type} /></span><div className="min-w-0 flex-1"><p className="rail-vital__label">{VITAL_LABEL[reading.type]}</p><h3>{readingValue(reading)}</h3><p className="rail-vital__meta">{formatWhen(reading.measuredAt)}{previous ? ` · prev ${readingValue(previous)}` : " · first record"}</p></div><span className={`status-pip status-pip--${flag.level}`} title={STATUS_COPY[flag.level]} /></article>;
 }
 
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  detail,
-  emptyTitle,
-  emptyText,
-  emptyAction,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value?: string;
-  detail: string;
-  emptyTitle: string;
-  emptyText: string;
-  emptyAction: string;
-}) {
-  return (
-    <div className="flex h-full flex-col rounded-2xl border border-line bg-card p-5">
-      <div className="flex items-center gap-2 text-sm font-medium text-muted">
-        <Icon className="size-4 shrink-0 text-accent-bright" aria-hidden="true" />
-        <h3>{label}</h3>
-      </div>
-      {value ? (
-        <div className="mt-4">
-          <p className="font-display text-3xl font-semibold leading-none tracking-tight text-fg">{value}</p>
-          <p className="mt-2 text-sm text-muted">{detail}</p>
-        </div>
-      ) : (
-        <div className="mt-4">
-          <p className="text-base font-medium text-fg">{emptyTitle}</p>
-          <p className="mt-1 text-sm text-muted">{emptyText}</p>
-          <Link href="/vitals" className={`${textLink} mt-3`}>
-            {emptyAction}
-            <ArrowRight className="size-3.5" aria-hidden="true" />
-          </Link>
-        </div>
-      )}
-    </div>
-  );
+function IntelligencePanel({ readings }: { readings: Reading[] }) {
+  const present = new Set(readings.map((reading) => reading.type));
+  const missing = VITAL_ORDER.filter((type) => !present.has(type));
+  const comparisons = VITAL_ORDER.map((type) => { const list = readings.filter((reading) => reading.type === type); return list.length > 1 ? { type, latest: list[0], previous: list[1] } : null; }).filter((item): item is { type: VitalType; latest: Reading; previous: Reading } => item !== null);
+  return <section className="intelligence-panel" aria-labelledby="intelligence-heading"><div className="panel-kicker"><span>Signal interpretation</span><Bot className="size-4" /></div><h2 id="intelligence-heading">Health intelligence</h2><p className="panel-intro">Observations generated from saved measurements only.</p><div className="intelligence-list">{comparisons.slice(0, 3).map(({ type, latest, previous }) => <div className="intelligence-row" key={type}><span><VitalIcon type={type} /></span><p><strong>{VITAL_LABEL[type]}</strong><small>Latest {readingValue(latest)} · previous {readingValue(previous)}</small></p></div>)}{missing.length > 0 && <div className="intelligence-row intelligence-row--muted"><span><Plus className="size-4" /></span><p><strong>Not recorded yet</strong><small>{missing.map((type) => VITAL_LABEL[type]).join(" · ")}</small></p></div>}{comparisons.length === 0 && missing.length === 0 && <p className="panel-intro">Record another measurement to create a comparison.</p>}</div><Link href="/insights" className={`${textLink} mt-5`}>Open insights <ArrowRight className="size-3.5" /></Link></section>;
+}
+
+function ActivityTimeline({ readings }: { readings: Reading[] }) {
+  const events = readings.flatMap((reading) => { const items = [{ id: `${reading.id}-recorded`, label: `${readingName(reading)} recorded`, value: readingValue(reading), at: reading.createdAt, type: reading.type }]; if (Date.parse(reading.updatedAt) - Date.parse(reading.createdAt) > 1000) items.push({ id: `${reading.id}-updated`, label: `${readingName(reading)} updated`, value: readingValue(reading), at: reading.updatedAt, type: reading.type }); return items; }).sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 5);
+  return <section className="activity-panel" aria-labelledby="activity-heading"><div className="section-heading"><div><p className="eyebrow">Event stream</p><h2 id="activity-heading">Recent activity</h2></div><Link href="/history" className={textLink}>All history <ArrowRight className="size-3.5" /></Link></div>{events.length ? <ol className="medical-timeline">{events.map((event) => <li key={event.id}><span className="timeline-node"><VitalIcon type={event.type} /></span><div><p>{event.label}</p><small>{event.value} · {formatWhen(event.at)}</small></div></li>)}</ol> : <div className="activity-empty"><Activity className="size-5 text-accent" /><p>Your timeline begins when you record a vital.</p><Link href="/vitals" className={textLink}>Record a vital</Link></div>}</section>;
 }
 
 export function DashboardView() {
   const { readings } = useReadings();
-  const prefs = usePreferences();
+  const user = useSessionUser();
+  const latest = (type: VitalType) => readings.find((reading) => reading.type === type);
+  const previous = (type: VitalType) => readings.filter((reading) => reading.type === type)[1];
+  const heartReadings = readings.filter((reading): reading is HeartRateReading => reading.type === "heart_rate");
+  const latestHeart = latest("heart_rate") as HeartRateReading | undefined;
+  const categories = new Set(readings.map((reading) => reading.type)).size;
 
-  const latestHeart = readings.find((r): r is HeartRateReading => r.type === "heart_rate");
-  const latestBp = readings.find((r): r is BloodPressureReading => r.type === "blood_pressure");
-  const heartCount = readings.filter((r) => r.type === "heart_rate").length;
-  const bpCount = readings.length - heartCount;
-  const recent = readings.slice(0, 5);
+  return <div className="telemetry-dashboard">
+    <div className="telemetry-commandbar"><div className="commandbar-brand"><span className="commandbar-dot" /><span>PERSONAL RECORD</span><b>·</b><span>LOCAL MEASUREMENTS</span></div><div className="commandbar-actions"><Link href="/chat" className={textLink}><Bot className="size-3.5" /> Senzora AI</Link><Link href="/find-care" className={textLink}><MapPin className="size-3.5" /> Find care</Link></div></div>
 
-  const activity = readings
-    .flatMap((r) => {
-      const events = [{ key: `${r.id}-c`, label: `${readingName(r)} recorded`, value: readingValue(r), at: r.createdAt }];
-      if (Date.parse(r.updatedAt) - Date.parse(r.createdAt) > 1000) {
-        events.push({ key: `${r.id}-u`, label: `${readingName(r)} edited`, value: readingValue(r), at: r.updatedAt });
-      }
-      return events;
-    })
-    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
-    .slice(0, 6);
+    <section className="system-overview" aria-labelledby="overview-heading"><div className="overview-copy"><p className="eyebrow"><span className="pulse-dot size-2 rounded-full bg-accent" />Health intelligence workspace</p><h2 id="overview-heading">{user ? `Welcome back, ${user.name}.` : "Your record, in focus."}</h2><p>{readings.length ? `You have ${readings.length} saved measurement${readings.length === 1 ? "" : "s"} across ${categories} vital categor${categories === 1 ? "y" : "ies"}. The latest was recorded ${formatWhen(readings[0].measuredAt)}.` : "Record a vital to start building your personal health record."}</p><div className="overview-actions"><Link href="/vitals" className={primaryButton}><Plus className="size-4" />Record a vital</Link><Link href="/chat" className={secondaryButton}><Bot className="size-4" />Ask Senzora</Link></div></div><div className="overview-orbit"><div className="orbit orbit--one" /><div className="orbit orbit--two" /><div className="orbit-core"><span>{readings.length}</span><small>records</small></div><small className="orbit-caption">No continuous sensor connected</small></div><dl className="overview-facts"><div><dt>Record status</dt><dd>{readings.length ? "Available" : "Awaiting first entry"}</dd></div><div><dt>Vital coverage</dt><dd>{categories} / 4 categories</dd></div><div><dt>Latest entry</dt><dd>{readings[0] ? formatWhen(readings[0].measuredAt) : "—"}</dd></div></dl></section>
 
-  const hasData = readings.length > 0;
+    <section className="telemetry-workspace" aria-labelledby="monitoring-heading"><div className="section-heading"><div><p className="eyebrow">Biometric records</p><h2 id="monitoring-heading">Monitoring workspace</h2></div><Link href="/vitals" className={textLink}>Manage measurements <ArrowRight className="size-3.5" /></Link></div><div className="monitoring-grid"><article className="cardiac-panel"><div className="cardiac-panel__head"><div><div className="panel-kicker"><HeartPulse className="size-4" /><span>Heart rate history</span></div><h3>{latestHeart ? <>{latestHeart.bpm}<small> BPM</small></> : "—"}</h3><p>{latestHeart ? `${formatWhen(latestHeart.measuredAt)}${previous("heart_rate") ? ` · previous ${readingValue(previous("heart_rate")!)}` : ""}` : "No saved heart-rate measurement"}</p></div>{latestHeart && <span className={`state-label state-label--${classifyReading(latestHeart).level}`}><i />{STATUS_COPY[classifyReading(latestHeart).level]}</span>}</div><div className="cardiac-chart"><Sparkline readings={heartReadings} /><span className="chart-axis chart-axis--min">{heartReadings.length ? `${Math.min(...heartReadings.map((reading) => reading.bpm))} bpm` : "No data"}</span><span className="chart-axis chart-axis--max">{heartReadings.length ? `${Math.max(...heartReadings.map((reading) => reading.bpm))} bpm` : ""}</span></div><p className="data-caption">Recorded heart-rate trend · {heartReadings.length} measurement{heartReadings.length === 1 ? "" : "s"}</p></article><div className="vital-rail"><CompactVital reading={latest("blood_pressure")} previous={previous("blood_pressure")} /><CompactVital reading={latest("body_temperature")} previous={previous("body_temperature")} /><CompactVital reading={latest("blood_oxygen")} previous={previous("blood_oxygen")} /></div></div></section>
 
-  return (
-    <div className="space-y-6">
-      {/* Welcome */}
-      <section
-        aria-labelledby="welcome-heading"
-        className="flex flex-col gap-6 rounded-2xl border border-line bg-linear-to-br from-card to-canvas p-6 sm:flex-row sm:items-center sm:justify-between sm:p-7"
-      >
-        <div className="max-w-xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">See Beyond the Signals.</p>
-          <h2 id="welcome-heading" className="mt-3 font-display text-2xl font-semibold tracking-tight text-fg sm:text-3xl">
-            Welcome back, {prefs.displayName}
-          </h2>
-          <p className="mt-2 text-sm leading-relaxed text-muted sm:text-base">
-            {hasData
-              ? `Your latest reading was saved on ${formatWhen(readings[0].measuredAt)}. Add a new one to keep your trends current.`
-              : "You have no saved readings yet. Record your first heart rate or blood pressure to start building your overview."}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-3 sm:shrink-0">
-          <Link href="/vitals" className={primaryButton}>
-            <Plus className="size-4" aria-hidden="true" />
-            Record a Vital
-          </Link>
-          <Link href="/chat" className={secondaryButton}>
-            <MessageCircle className="size-4 text-accent-bright" aria-hidden="true" />
-            Ask Senzora
-          </Link>
-        </div>
-      </section>
-
-      {/* Latest readings */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <StatCard
-          icon={HeartPulse}
-          label="Latest heart rate"
-          value={latestHeart ? `${latestHeart.bpm} bpm` : undefined}
-          detail={latestHeart ? `${formatWhen(latestHeart.measuredAt)} · ${SOURCE_LABEL[latestHeart.source]}` : ""}
-          emptyTitle="No heart rate yet"
-          emptyText="Record one to see it here."
-          emptyAction="Record heart rate"
-        />
-        <StatCard
-          icon={Gauge}
-          label="Latest blood pressure"
-          value={latestBp ? `${latestBp.systolic}/${latestBp.diastolic} mmHg` : undefined}
-          detail={latestBp ? `${formatWhen(latestBp.measuredAt)} · ${SOURCE_LABEL[latestBp.source]}` : ""}
-          emptyTitle="No blood pressure yet"
-          emptyText="Record one to see it here."
-          emptyAction="Record blood pressure"
-        />
-        <div className="sm:col-span-2 xl:col-span-1">
-          <StatCard
-            icon={ClipboardList}
-            label="Saved readings"
-            value={hasData ? String(readings.length) : undefined}
-            detail={`${heartCount} heart rate · ${bpCount} blood pressure`}
-            emptyTitle="Nothing saved yet"
-            emptyText="Readings you add are stored on this device."
-            emptyAction="Record a vital"
-          />
-        </div>
-      </div>
-
-      {/* Trends + activity */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <TrendsCard readings={readings} />
-        <Card labelledBy="activity-heading">
-          <CardHeading id="activity-heading" title="Recent activity" />
-          {activity.length > 0 ? (
-            <ul className="mt-4 space-y-4">
-              {activity.map((e) => (
-                <li key={e.key} className="flex gap-3">
-                  <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-raised text-accent-bright">
-                    <Activity className="size-4" aria-hidden="true" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-fg">{e.label}</p>
-                    <p className="text-xs text-muted">
-                      {e.value} · {formatWhen(e.at)}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="mt-4 rounded-xl border border-dashed border-line px-4 py-8 text-center">
-              <p className="text-sm font-medium text-fg">No activity yet</p>
-              <p className="mt-1 text-sm text-muted">Each reading you record will show up here.</p>
-              <Link href="/vitals" className={`${textLink} mt-3`}>
-                Record your first vital
-              </Link>
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* Recent readings + assistant */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2" labelledBy="recent-heading">
-          <CardHeading id="recent-heading" title="Recent vital readings" action={hasData ? { href: "/history", label: "View all" } : undefined} />
-          {recent.length > 0 ? (
-            <ul className="mt-4 divide-y divide-line">
-              {recent.map((r) => (
-                <li key={r.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
-                  <div className="flex items-center gap-3">
-                    {r.type === "heart_rate" ? (
-                      <HeartPulse className="size-4 shrink-0 text-accent-bright" aria-hidden="true" />
-                    ) : (
-                      <Gauge className="size-4 shrink-0 text-accent-bright" aria-hidden="true" />
-                    )}
-                    <div>
-                      <p className="text-sm font-medium text-fg">{readingName(r)}</p>
-                      <p className="text-xs text-muted">{formatWhen(r.measuredAt)}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <SourceBadge source={r.source} />
-                    <p className="font-display text-base font-semibold text-fg">{readingValue(r)}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="mt-4 rounded-xl border border-dashed border-line px-6 py-10 text-center">
-              <p className="text-sm font-medium text-fg">No readings recorded yet</p>
-              <p className="mx-auto mt-1 max-w-sm text-sm text-muted">Record a reading by hand. Device connections are not available yet.</p>
-              <Link href="/vitals" className={`${textLink} mt-3`}>
-                Record a Vital
-              </Link>
-            </div>
-          )}
-        </Card>
-
-        <Card labelledBy="assistant-heading">
-          <CardHeading id="assistant-heading" title="Ask Senzora" />
-          <p className="mt-2 text-sm leading-relaxed text-muted">
-            Ask questions about your readings or your medicines in plain language.
-          </p>
-          <Link href="/chat" className={`${secondaryButton} mt-4`}>
-            <MessageCircle className="size-4 text-accent-bright" aria-hidden="true" />
-            Open the assistant
-          </Link>
-          <p className="mt-5 border-t border-line pt-4 text-xs leading-relaxed text-muted">
-            Senzora gives general information, not a medical diagnosis. If a reading worries you or you feel unwell, contact a health professional or your local emergency service.
-          </p>
-        </Card>
-      </div>
-    </div>
-  );
+    <section className="analytics-block"><TrendsCard readings={readings} /></section>
+    <div className="lower-workspaces"><IntelligencePanel readings={readings} /><ActivityTimeline readings={readings} /></div>
+    <section className="care-preview" aria-labelledby="care-preview-heading"><span className="care-preview__icon"><MapPin className="size-5" /></span><div><p className="eyebrow">Healthcare access</p><h2 id="care-preview-heading">Find care when you need it</h2><p>Use your location or choose an area to browse the facilities available in Senzora&apos;s care directory.</p></div><Link href="/find-care" className={secondaryButton}>Open Find Care <ArrowRight className="size-4" /></Link></section>
+  </div>;
 }

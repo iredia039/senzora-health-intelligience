@@ -2,19 +2,15 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { CircleCheck, Gauge, HeartPulse, OctagonAlert, Plus, TriangleAlert } from "lucide-react";
+import { CircleCheck, OctagonAlert, Plus, TriangleAlert } from "lucide-react";
+import { VitalIcon } from "@/components/ui/VitalIcon";
 import { primaryButton } from "@/components/ui/buttons";
 import { THRESHOLDS, buildInsight, flaggedReadings, summarize } from "@/lib/analysis";
-import { SOURCE_LABEL, formatWhen, readingName, readingValue } from "@/lib/format";
+import { SOURCE_LABEL, VITAL_LABEL, VITAL_ORDER, formatWhen, readingName, readingValue } from "@/lib/format";
 import { useReadings } from "@/lib/hooks/useStoredData";
-import type { InsightStatus, VitalType } from "@/types";
+import type { InsightStatus } from "@/types";
 import { InsightCard, LEVEL_LABEL } from "./InsightCard";
 import { VitalTrend } from "./VitalTrend";
-
-const VITALS: { type: VitalType; label: string }[] = [
-  { type: "blood_pressure", label: "Blood pressure" },
-  { type: "heart_rate", label: "Heart rate" },
-];
 
 /** The vital that needs the most attention is shown first. */
 const ATTENTION_RANK: Record<InsightStatus, number> = { urgent: 0, caution: 1, reassuring: 2, insufficient_data: 3 };
@@ -26,7 +22,7 @@ export function InsightsView() {
 
   const sections = useMemo(
     () =>
-      VITALS.map(({ type, label }) => ({ type, label, insight: buildInsight(readings, type), summary: summarize(readings, type) })).sort(
+      VITAL_ORDER.map((type) => ({ type, label: VITAL_LABEL[type], insight: buildInsight(readings, type), summary: summarize(readings, type) })).sort(
         (a, b) => ATTENTION_RANK[a.insight.status] - ATTENTION_RANK[b.insight.status],
       ),
     [readings],
@@ -46,7 +42,7 @@ export function InsightsView() {
       <section className="flex flex-col items-center rounded-2xl border border-dashed border-line bg-card px-6 py-16 text-center">
         <h2 className="font-display text-lg font-semibold text-fg">Nothing to analyse yet</h2>
         <p className="mt-2 max-w-md text-sm leading-relaxed text-muted">
-          Once you save a heart rate or blood pressure reading, Senzora explains what it means here and flags anything that crosses a line.
+          Once you save a reading, Senzora explains what it means here and flags anything that crosses a line.
         </p>
         <Link href="/vitals" className={`${primaryButton} mt-6`}>
           <Plus className="size-4" aria-hidden="true" />
@@ -58,22 +54,21 @@ export function InsightsView() {
 
   const bp = THRESHOLDS.bloodPressure;
   const hr = THRESHOLDS.heartRate;
+  const temp = THRESHOLDS.bodyTemperature;
+  const spo2 = THRESHOLDS.bloodOxygen;
 
   return (
-    <div className="space-y-8">
-      <p className="max-w-3xl text-sm leading-relaxed text-muted">
+    <div className="insight-workspace space-y-8">
+      <p className="max-w-4xl rounded-2xl border border-line bg-card/70 px-5 py-4 text-sm leading-relaxed text-muted">
         Senzora only flags a reading after it has crossed a line. Blood pressure of {bp.caution.systolic}/{bp.caution.diastolic} or above is flagged, and{" "}
-        {bp.urgent.systolic}/{bp.urgent.diastolic} or above is urgent. Heart rate outside {hr.low} to {hr.high} bpm is flagged.
+        {bp.urgent.systolic}/{bp.urgent.diastolic} or above is urgent. Heart rate outside {hr.low} to {hr.high} bpm is flagged. Body temperature of {temp.high.toFixed(1)} °C or
+        above, or below {temp.low.toFixed(1)} °C, is flagged. Blood oxygen below {spo2.low}% is flagged, and {spo2.urgent}% or lower is urgent.
       </p>
 
       {sections.map(({ type, label, insight, summary }) => (
         <section key={type} aria-labelledby={`${type}-heading`} className="space-y-4">
           <h2 id={`${type}-heading`} className="flex items-center gap-2 font-display text-xl font-semibold text-fg">
-            {type === "heart_rate" ? (
-              <HeartPulse className="size-5 text-accent-bright" aria-hidden="true" />
-            ) : (
-              <Gauge className="size-5 text-accent-bright" aria-hidden="true" />
-            )}
+            <VitalIcon type={type} className="size-5 text-accent-bright" />
             {label}
           </h2>
           <div className="grid gap-4 lg:grid-cols-5">
@@ -87,7 +82,7 @@ export function InsightsView() {
         </section>
       ))}
 
-      <section aria-labelledby="flagged-heading" className="rounded-2xl border border-line bg-card p-5">
+      <section aria-labelledby="flagged-heading" className="rounded-3xl border border-line bg-card p-5">
         <h2 id="flagged-heading" className="font-display text-lg font-semibold text-fg">
           Readings that crossed a line
         </h2>

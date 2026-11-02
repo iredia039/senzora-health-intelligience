@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { Logo } from "@/components/brand/Logo";
 import { primaryButton, textLink } from "@/components/ui/buttons";
 import { ApiError } from "@/lib/api";
 import { login, register } from "@/lib/auth";
@@ -82,9 +83,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const otherHref = `/${isRegister ? "login" : "register"}?next=${encodeURIComponent(next)}`;
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-canvas px-4 py-10">
-      <section aria-labelledby="auth-title" className="w-full max-w-md rounded-2xl border border-line bg-card px-5 py-6 sm:px-8 sm:py-8">
-        <p className="font-display text-lg font-semibold text-accent-bright">Senzora</p>
+    <main className="medical-grid relative flex min-h-dvh items-center justify-center overflow-hidden bg-canvas px-4 py-10">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,var(--glow),transparent_28rem)]" />
+      <section aria-labelledby="auth-title" className="relative w-full max-w-md rounded-3xl border border-line bg-card/95 px-5 py-7 shadow-2xl backdrop-blur sm:px-8 sm:py-9">
+        <Logo size="sm" showTagline />
         <h1 id="auth-title" className="mt-3 font-display text-2xl font-semibold text-fg">
           {isRegister ? "Create your account" : "Log in"}
         </h1>

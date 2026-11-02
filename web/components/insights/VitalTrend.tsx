@@ -4,13 +4,30 @@ import Link from "next/link";
 import { ArrowDown, ArrowUp, Minus } from "lucide-react";
 import { CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { THRESHOLDS, type VitalSummary } from "@/lib/analysis";
-import { formatWhen, readingValue } from "@/lib/format";
+import { VITAL_NAME, VITAL_UNIT, formatWhen, readingValue, withUnit } from "@/lib/format";
 import { textLink } from "@/components/ui/buttons";
+import type { VitalType } from "@/types";
 
 const axisTick = { fill: "var(--muted)", fontSize: 12 };
 const MAX_POINTS = 30;
 
 const flagLabel = (text: string) => ({ value: text, position: "insideTopRight" as const, fill: "var(--danger)", fontSize: 11 });
+
+/** How much space the chart leaves around the data, and how finely the axis is rounded. */
+const AXIS: Record<VitalType, { pad: number; step: number }> = {
+  heart_rate: { pad: 10, step: 5 },
+  blood_pressure: { pad: 10, step: 5 },
+  body_temperature: { pad: 0.5, step: 0.5 },
+  blood_oxygen: { pad: 2, step: 1 },
+};
+
+/** The values where readings get flagged, drawn as dashed lines. */
+const FLAG_LINES: Record<VitalType, number[]> = {
+  heart_rate: [THRESHOLDS.heartRate.low, THRESHOLDS.heartRate.high],
+  blood_pressure: [THRESHOLDS.bloodPressure.caution.diastolic, THRESHOLDS.bloodPressure.caution.systolic],
+  body_temperature: [THRESHOLDS.bodyTemperature.low, THRESHOLDS.bodyTemperature.high],
+  blood_oxygen: [THRESHOLDS.bloodOxygen.low],
+};
 
 function Stat({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -22,30 +39,35 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
 }
 
 export function VitalTrend({ summary }: { summary: VitalSummary }) {
-  const isHeart = summary.type === "heart_rate";
-  const name = isHeart ? "heart rate" : "blood pressure";
-  const unit = isHeart ? "bpm" : "mmHg";
+  const type = summary.type;
+  const name = VITAL_NAME[type];
+  const unit = VITAL_UNIT[type];
   const points = summary.readings.slice(-MAX_POINTS).map((r) => ({
     label: formatWhen(r.measuredAt),
     bpm: r.type === "heart_rate" ? r.bpm : undefined,
     systolic: r.type === "blood_pressure" ? r.systolic : undefined,
     diastolic: r.type === "blood_pressure" ? r.diastolic : undefined,
+    celsius: r.type === "body_temperature" ? r.celsius : undefined,
+    spo2: r.type === "blood_oxygen" ? r.spo2 : undefined,
   }));
 
-  // Keep the flag lines inside the chart even when every reading is well below them.
-  const values = points.flatMap((p) => [p.bpm, p.systolic, p.diastolic]).filter((v): v is number => v !== undefined);
-  const lines = isHeart
-    ? [THRESHOLDS.heartRate.low, THRESHOLDS.heartRate.high]
-    : [THRESHOLDS.bloodPressure.caution.diastolic, THRESHOLDS.bloodPressure.caution.systolic];
-  const low = Math.floor((Math.min(...values, ...lines) - 10) / 5) * 5;
-  const high = Math.ceil((Math.max(...values, ...lines) + 10) / 5) * 5;
+  // Keep the flag lines inside the chart even when every reading is well away from them.
+  const values = points.flatMap((p) => [p.bpm, p.systolic, p.diastolic, p.celsius, p.spo2]).filter((v): v is number => v !== undefined);
+  const lines = FLAG_LINES[type];
+  const { pad, step } = AXIS[type];
+  const low = Math.floor((Math.min(...values, ...lines) - pad) / step) * step;
+  const rawHigh = Math.ceil((Math.max(...values, ...lines) + pad) / step) * step;
+  // Oxygen saturation cannot go above 100%.
+  const high = type === "blood_oxygen" ? Math.min(100, rawHigh) : rawHigh;
 
   const change = summary.change;
   const ChangeIcon = change?.direction === "up" ? ArrowUp : change?.direction === "down" ? ArrowDown : Minus;
 
+  const lineProps = { type: "monotone" as const, strokeWidth: 2, isAnimationActive: false };
+
   return (
-    <section aria-labelledby={`${summary.type}-trend-heading`} className="rounded-2xl border border-line bg-card p-5">
-      <h3 id={`${summary.type}-trend-heading`} className="font-display text-lg font-semibold text-fg">
+    <section aria-labelledby={`${type}-trend-heading`} className="rounded-2xl border border-line bg-card p-5">
+      <h3 id={`${type}-trend-heading`} className="font-display text-lg font-semibold text-fg">
         Trend
       </h3>
       <p className="text-sm text-muted">
@@ -86,21 +108,39 @@ export function VitalTrend({ summary }: { summary: VitalSummary }) {
               <Tooltip
                 contentStyle={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, color: "var(--fg)" }}
                 labelStyle={{ color: "var(--muted)" }}
-                formatter={(value, seriesName) => [`${value} ${unit}`, seriesName]}
+                formatter={(value, seriesName) => [withUnit(String(value), type), seriesName]}
               />
-              {isHeart ? (
+
+              {type === "heart_rate" && (
                 <>
                   <ReferenceLine y={THRESHOLDS.heartRate.high} stroke="var(--danger)" strokeDasharray="6 4" label={flagLabel(`Above ${THRESHOLDS.heartRate.high}`)} />
                   <ReferenceLine y={THRESHOLDS.heartRate.low} stroke="var(--danger)" strokeDasharray="6 4" label={flagLabel(`Below ${THRESHOLDS.heartRate.low}`)} />
-                  <Line type="monotone" dataKey="bpm" name="Heart rate (bpm)" stroke="var(--accent-bright)" strokeWidth={2} dot={{ r: 3, fill: "var(--accent-bright)" }} isAnimationActive={false} />
+                  <Line {...lineProps} dataKey="bpm" name="Heart rate (bpm)" stroke="var(--accent-bright)" dot={{ r: 3, fill: "var(--accent-bright)" }} />
                 </>
-              ) : (
+              )}
+
+              {type === "blood_pressure" && (
                 <>
                   <Legend wrapperStyle={{ color: "var(--muted)", fontSize: 12 }} />
                   <ReferenceLine y={THRESHOLDS.bloodPressure.caution.systolic} stroke="var(--danger)" strokeDasharray="6 4" label={flagLabel(`Systolic ${THRESHOLDS.bloodPressure.caution.systolic}`)} />
                   <ReferenceLine y={THRESHOLDS.bloodPressure.caution.diastolic} stroke="var(--danger)" strokeDasharray="6 4" label={flagLabel(`Diastolic ${THRESHOLDS.bloodPressure.caution.diastolic}`)} />
-                  <Line type="monotone" dataKey="systolic" name="Systolic (mmHg)" stroke="var(--accent-bright)" strokeWidth={2} dot={{ r: 3, fill: "var(--accent-bright)" }} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="diastolic" name="Diastolic (mmHg)" stroke="var(--sky)" strokeWidth={2} strokeDasharray="5 4" dot={{ r: 3, fill: "var(--sky)" }} isAnimationActive={false} />
+                  <Line {...lineProps} dataKey="systolic" name="Systolic (mmHg)" stroke="var(--accent-bright)" dot={{ r: 3, fill: "var(--accent-bright)" }} />
+                  <Line {...lineProps} dataKey="diastolic" name="Diastolic (mmHg)" stroke="var(--sky)" strokeDasharray="5 4" dot={{ r: 3, fill: "var(--sky)" }} />
+                </>
+              )}
+
+              {type === "body_temperature" && (
+                <>
+                  <ReferenceLine y={THRESHOLDS.bodyTemperature.high} stroke="var(--danger)" strokeDasharray="6 4" label={flagLabel(`Fever ${THRESHOLDS.bodyTemperature.high.toFixed(1)}`)} />
+                  <ReferenceLine y={THRESHOLDS.bodyTemperature.low} stroke="var(--danger)" strokeDasharray="6 4" label={flagLabel(`Below ${THRESHOLDS.bodyTemperature.low.toFixed(1)}`)} />
+                  <Line {...lineProps} dataKey="celsius" name="Temperature (°C)" stroke="var(--accent-bright)" dot={{ r: 3, fill: "var(--accent-bright)" }} />
+                </>
+              )}
+
+              {type === "blood_oxygen" && (
+                <>
+                  <ReferenceLine y={THRESHOLDS.bloodOxygen.low} stroke="var(--danger)" strokeDasharray="6 4" label={flagLabel(`Below ${THRESHOLDS.bloodOxygen.low}`)} />
+                  <Line {...lineProps} dataKey="spo2" name="Blood oxygen (%)" stroke="var(--accent-bright)" dot={{ r: 3, fill: "var(--accent-bright)" }} />
                 </>
               )}
             </LineChart>

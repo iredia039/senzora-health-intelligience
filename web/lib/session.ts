@@ -2,6 +2,7 @@
 
 const TOKEN_KEY = "senzora:token";
 const USER_KEY = "senzora:user";
+const CONVERSATION_KEY = "senzora:conversation";
 const CHANGE_EVENT = "senzora:session-change";
 
 export type SessionUser = { id: number; name: string };
@@ -67,6 +68,7 @@ export function clearSession(): void {
   try {
     window.localStorage.removeItem(TOKEN_KEY);
     window.localStorage.removeItem(USER_KEY);
+    window.localStorage.removeItem(CONVERSATION_KEY);
     window.dispatchEvent(new Event(CHANGE_EVENT));
   } catch {
     /* nothing to clear if storage is unavailable */

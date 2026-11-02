@@ -1,3 +1,4 @@
+import { VITAL_ORDER } from "@/lib/format";
 import type { ChatMessage, Preferences, Reading, ReadingInput } from "@/types";
 
 const PREFIX = "senzora:";
@@ -48,7 +49,7 @@ const isReadingList = (v: unknown): v is Reading[] =>
       r !== null &&
       typeof (r as Reading).id === "string" &&
       typeof (r as Reading).measuredAt === "string" &&
-      ((r as Reading).type === "heart_rate" || (r as Reading).type === "blood_pressure"),
+      VITAL_ORDER.includes((r as Reading).type),
   );
 
 const isPreferences = (v: unknown): v is Preferences =>
@@ -193,10 +194,18 @@ export function addDemoReadings(): boolean {
   const bpm = [72, 75, 70, 78, 74, 76, 73, 80, 77, 74];
   const systolic = [116, 118, 121, 119, 124];
   const diastolic = [76, 77, 79, 78, 81];
+  const temperature = [36.6, 36.8, 36.7, 37.0, 36.6, 36.9, 36.7, 36.8, 36.6, 36.9];
+  const oxygen = [97, 98, 97, 96, 98, 97, 98, 97, 96, 98];
   const demo: Reading[] = [];
   bpm.forEach((value, i) => {
     const measuredAt = new Date(end - (bpm.length - 1 - i) * DAY).toISOString();
     demo.push({ id: newId(), type: "heart_rate", bpm: value, measuredAt, source: "demo", createdAt: stamp, updatedAt: stamp });
+    if (i % 2 === 1) {
+      demo.push({ id: newId(), type: "body_temperature", celsius: temperature[i], measuredAt, source: "demo", createdAt: stamp, updatedAt: stamp });
+    }
+    if (i % 3 === 0) {
+      demo.push({ id: newId(), type: "blood_oxygen", spo2: oxygen[i], measuredAt, source: "demo", createdAt: stamp, updatedAt: stamp });
+    }
     if (i % 2 === 0) {
       demo.push({
         id: newId(),

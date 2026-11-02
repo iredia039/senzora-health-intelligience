@@ -1,4 +1,4 @@
-export type VitalType = "heart_rate" | "blood_pressure";
+export type VitalType = "heart_rate" | "blood_pressure" | "body_temperature" | "blood_oxygen";
 
 /** "demo" readings come from the Load demo data action and are always labelled as such. */
 export type ReadingSource = "manual" | "device" | "demo";
@@ -21,12 +21,20 @@ export type BloodPressureReading = ReadingBase & {
   diastolic: number;
 };
 
-export type Reading = HeartRateReading | BloodPressureReading;
+/** Degrees Celsius, one decimal place, for example 36.8. */
+export type BodyTemperatureReading = ReadingBase & { type: "body_temperature"; celsius: number };
+
+/** Oxygen saturation (SpO2) as a whole-number percentage, for example 97. */
+export type BloodOxygenReading = ReadingBase & { type: "blood_oxygen"; spo2: number };
+
+export type Reading = HeartRateReading | BloodPressureReading | BodyTemperatureReading | BloodOxygenReading;
 
 /** What the vitals form collects; the storage layer adds ids, source and timestamps. */
 export type ReadingInput =
   | { type: "heart_rate"; bpm: number; measuredAt: string; notes?: string }
-  | { type: "blood_pressure"; systolic: number; diastolic: number; measuredAt: string; notes?: string };
+  | { type: "blood_pressure"; systolic: number; diastolic: number; measuredAt: string; notes?: string }
+  | { type: "body_temperature"; celsius: number; measuredAt: string; notes?: string }
+  | { type: "blood_oxygen"; spo2: number; measuredAt: string; notes?: string };
 
 export type ThemePreference = "light" | "dark" | "system";
 

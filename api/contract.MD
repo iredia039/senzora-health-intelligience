@@ -58,7 +58,7 @@ FRONTEND SEND:
   body:
     message (string, required, 1 to 500 characters)
     conversationId (number, optional; leave it out to start a new chat)
-    readings (array, optional, up to 20 recent readings from the browser; each has type, measuredAt, and either systolic and diastolic or bpm)
+    readings (array, optional, up to 20 recent readings from the browser; each has type and measuredAt, plus: heart_rate needs bpm; blood_pressure needs systolic and diastolic; blood_oxygen needs spo2 (50 to 100); body_temperature needs celsius (30 to 45))
 SUCCESS: status 200
   { reply, conversationId, title }
 ERROR:
@@ -80,6 +80,8 @@ AI must stop chatting when user starts experiencing:
 .Severe trouble breathing, or the user can’t speak full sentences.
 .Blood pressure at or above 180/120.
 .Resting heart rate above 130 or below 40.
+.Blood oxygen at or below 90%.
+.Body temperature at or above 39.5 C or at or below 35 C.
 .AI must respond with get urgent help when user starts having thoughts of self harm
 
 CONSENT TEXT

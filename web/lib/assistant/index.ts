@@ -11,11 +11,18 @@ function toPayload(readings: Reading[]) {
   return [...readings]
     .sort((a, b) => Date.parse(b.measuredAt) - Date.parse(a.measuredAt))
     .slice(0, MAX_READINGS)
-    .map((r) =>
-      r.type === "heart_rate"
-        ? { type: r.type, measuredAt: r.measuredAt, bpm: r.bpm }
-        : { type: r.type, measuredAt: r.measuredAt, systolic: r.systolic, diastolic: r.diastolic },
-    );
+    .map((r) => {
+      switch (r.type) {
+        case "heart_rate":
+          return { type: r.type, measuredAt: r.measuredAt, bpm: r.bpm };
+        case "blood_pressure":
+          return { type: r.type, measuredAt: r.measuredAt, systolic: r.systolic, diastolic: r.diastolic };
+        case "body_temperature":
+          return { type: r.type, measuredAt: r.measuredAt, celsius: r.celsius };
+        case "blood_oxygen":
+          return { type: r.type, measuredAt: r.measuredAt, spo2: r.spo2 };
+      }
+    });
 }
 
 /** Sends one message to POST /chatbot. The server keeps the earlier messages of the conversation. */

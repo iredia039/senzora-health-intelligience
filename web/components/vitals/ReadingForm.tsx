@@ -17,12 +17,25 @@ const wholeNumberIssue = (raw: string, min: number, max: number, what: string): 
   return n < min || n > max ? `Enter a value between ${min} and ${max}.` : null;
 };
 
+/** One decimal place at most, and a comma is accepted in place of a dot. */
+const decimalIssue = (raw: string, min: number, max: number, what: string): string | null => {
+  const text = raw.trim().replace(",", ".");
+  if (text === "") return `Enter ${what}.`;
+  if (!/^\d{1,2}(\.\d)?$/.test(text)) return "Use a number with at most one decimal place, for example 36.8.";
+  const n = Number(text);
+  return n < min || n > max ? `Enter a value between ${min} and ${max}.` : null;
+};
+
+const toNumber = (raw: string) => Number(raw.trim().replace(",", "."));
+
 const schema = z
   .object({
-    type: z.enum(["heart_rate", "blood_pressure"]),
+    type: z.enum(["heart_rate", "blood_pressure", "body_temperature", "blood_oxygen"]),
     bpm: z.string(),
     systolic: z.string(),
     diastolic: z.string(),
+    celsius: z.string(),
+    spo2: z.string(),
     measuredAt: z.string(),
     notes: z.string().max(200, "Keep notes under 200 characters."),
   })
@@ -38,6 +51,19 @@ const schema = z
       if (issue) add("bpm", issue);
       return;
     }
+
+    if (v.type === "body_temperature") {
+      const issue = decimalIssue(v.celsius, 30, 45, "a body temperature");
+      if (issue) add("celsius", issue);
+      return;
+    }
+
+    if (v.type === "blood_oxygen") {
+      const issue = wholeNumberIssue(v.spo2, 50, 100, "a blood oxygen level");
+      if (issue) add("spo2", issue);
+      return;
+    }
+
     const sys = wholeNumberIssue(v.systolic, 70, 260, "the top number (systolic)");
     const dia = wholeNumberIssue(v.diastolic, 40, 150, "the bottom number (diastolic)");
     if (sys) add("systolic", sys);
@@ -54,6 +80,8 @@ const blank = (): FormValues => ({
   bpm: "",
   systolic: "",
   diastolic: "",
+  celsius: "",
+  spo2: "",
   measuredAt: toLocalInput(new Date().toISOString()),
   notes: "",
 });
@@ -63,9 +91,33 @@ const fromReading = (r: Reading): FormValues => ({
   bpm: r.type === "heart_rate" ? String(r.bpm) : "",
   systolic: r.type === "blood_pressure" ? String(r.systolic) : "",
   diastolic: r.type === "blood_pressure" ? String(r.diastolic) : "",
+  celsius: r.type === "body_temperature" ? r.celsius.toFixed(1) : "",
+  spo2: r.type === "blood_oxygen" ? String(r.spo2) : "",
   measuredAt: toLocalInput(r.measuredAt),
   notes: r.notes ?? "",
 });
+
+function toInput(v: FormValues, measuredAt: string, notes: string | undefined): ReadingInput {
+  switch (v.type) {
+    case "heart_rate":
+      return { type: "heart_rate", bpm: Number(v.bpm), measuredAt, notes };
+    case "body_temperature":
+      return { type: "body_temperature", celsius: toNumber(v.celsius), measuredAt, notes };
+    case "blood_oxygen":
+      return { type: "blood_oxygen", spo2: Number(v.spo2), measuredAt, notes };
+    case "blood_pressure":
+      return { type: "blood_pressure", systolic: Number(v.systolic), diastolic: Number(v.diastolic), measuredAt, notes };
+  }
+}
+
+const FIRST_FIELD = { heart_rate: "bpm", blood_pressure: "systolic", body_temperature: "celsius", blood_oxygen: "spo2" } as const;
+
+const VITAL_OPTIONS = [
+  ["heart_rate", "Heart rate"],
+  ["blood_pressure", "Blood pressure"],
+  ["body_temperature", "Body temperature"],
+  ["blood_oxygen", "Blood oxygen"],
+] as const;
 
 const inputClass =
   "w-full rounded-xl border border-line bg-canvas px-3.5 py-2.5 text-sm text-fg placeholder:text-muted aria-invalid:border-danger";
@@ -113,7 +165,7 @@ export function ReadingForm({
   const type = useWatch({ control, name: "type" });
 
   useEffect(() => {
-    if (editing) setFocus(editing.type === "heart_rate" ? "bpm" : "systolic");
+    if (editing) setFocus(FIRST_FIELD[editing.type]);
   }, [editing, setFocus]);
 
   const aria = (name: keyof FormValues, hint = false) => ({
@@ -124,10 +176,7 @@ export function ReadingForm({
   const onSubmit = (v: FormValues) => {
     const measuredAt = new Date(v.measuredAt).toISOString();
     const notes = v.notes.trim() || undefined;
-    const input: ReadingInput =
-      v.type === "heart_rate"
-        ? { type: "heart_rate", bpm: Number(v.bpm), measuredAt, notes }
-        : { type: "blood_pressure", systolic: Number(v.systolic), diastolic: Number(v.diastolic), measuredAt, notes };
+    const input = toInput(v, measuredAt, notes);
 
     const saved = editing ? updateReading(editing.id, input) : addReading(input);
     if (!saved) {
@@ -143,12 +192,7 @@ export function ReadingForm({
       <fieldset>
         <legend className="text-sm font-medium text-fg">Vital</legend>
         <div className="mt-1.5 grid grid-cols-2 gap-2">
-          {(
-            [
-              ["heart_rate", "Heart rate"],
-              ["blood_pressure", "Blood pressure"],
-            ] as const
-          ).map(([value, label]) => (
+          {VITAL_OPTIONS.map(([value, label]) => (
             <label
               key={value}
               className="flex items-center gap-2.5 rounded-xl border border-line bg-canvas px-3.5 py-2.5 text-sm text-fg has-checked:border-accent-bright has-checked:bg-raised has-disabled:opacity-60"
@@ -161,11 +205,13 @@ export function ReadingForm({
         {editing && <p className="mt-1.5 text-xs text-muted">The vital can&apos;t be changed on a saved reading. Delete it and record a new one instead.</p>}
       </fieldset>
 
-      {type === "heart_rate" ? (
+      {type === "heart_rate" && (
         <Field name="bpm" label="Heart rate (bpm)" hint="Beats per minute, for example 72." error={errors.bpm?.message}>
           <input id="bpm" inputMode="numeric" autoComplete="off" className={inputClass} {...aria("bpm", true)} {...register("bpm")} />
         </Field>
-      ) : (
+      )}
+
+      {type === "blood_pressure" && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
           <Field name="systolic" label="Top number (systolic)" hint="In mmHg, for example 120." error={errors.systolic?.message}>
             <input id="systolic" inputMode="numeric" autoComplete="off" className={inputClass} {...aria("systolic", true)} {...register("systolic")} />
@@ -174,6 +220,18 @@ export function ReadingForm({
             <input id="diastolic" inputMode="numeric" autoComplete="off" className={inputClass} {...aria("diastolic", true)} {...register("diastolic")} />
           </Field>
         </div>
+      )}
+
+      {type === "body_temperature" && (
+        <Field name="celsius" label="Body temperature (°C)" hint="In degrees Celsius, for example 36.8." error={errors.celsius?.message}>
+          <input id="celsius" inputMode="decimal" autoComplete="off" className={inputClass} {...aria("celsius", true)} {...register("celsius")} />
+        </Field>
+      )}
+
+      {type === "blood_oxygen" && (
+        <Field name="spo2" label="Blood oxygen (SpO2, %)" hint="A whole number from a pulse oximeter, for example 97." error={errors.spo2?.message}>
+          <input id="spo2" inputMode="numeric" autoComplete="off" className={inputClass} {...aria("spo2", true)} {...register("spo2")} />
+        </Field>
       )}
 
       <Field name="measuredAt" label="When you took it" error={errors.measuredAt?.message}>

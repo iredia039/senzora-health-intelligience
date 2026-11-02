@@ -121,13 +121,13 @@ export function FindCareView() {
   const areaId = AREAS.find((a) => origin && a.label === origin.label)?.id ?? "";
 
   return (
-    <div className="space-y-6">
-      <p className="flex items-start gap-3 rounded-2xl border border-danger bg-card p-4 text-sm leading-relaxed text-fg">
+    <div className="care-workspace space-y-6">
+      <p className="flex items-start gap-3 rounded-2xl border border-danger bg-card p-4 text-sm leading-relaxed text-fg shadow-[0_12px_30px_-24px_var(--danger)]">
         <Siren className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden="true" />
         <span>If this is an emergency, call your local emergency service now. Do not wait for results on this page.</span>
       </p>
 
-      <section aria-labelledby="where-heading" className="rounded-2xl border border-line bg-card p-5">
+      <section aria-labelledby="where-heading" className="rounded-3xl border border-line bg-card p-5">
         <h2 id="where-heading" className="font-display text-lg font-semibold text-fg">
           Where are you?
         </h2>
