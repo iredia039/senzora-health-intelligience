@@ -13,7 +13,7 @@ async function fetchNearbyFacilities(lat, lng, radiusKm) {
   // use the saved answer if it is still fresh
   const cached = cache.get(key)
   if (cached && Date.now() - cached.savedAt < CACHE_LIFETIME) {
-    console.log('cache hit', key)
+    // console.log('cache hit', key)
     return cached.data
   }
 
@@ -45,11 +45,19 @@ async function fetchNearbyFacilities(lat, lng, radiusKm) {
     return data.elements
   }
 
-  const elements = await Promise.any(overpass.map(askServer))
+   try {
+    const elements = await Promise.any(overpass.map(askServer))
 
-  // save the answer with the time
-  cache.set(key, { data: elements, savedAt: Date.now() })
-  return elements
+    // save the answer with the time
+    cache.set(key, { data: elements, savedAt: Date.now() })
+    return elements
+  } catch (error) {
+    // Overpass failed: use the old saved answer if there is one
+    if (cached) {
+      return cached.data
+    }
+    throw error
+  }
 }
 
 function toFacility(element) {
