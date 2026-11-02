@@ -20,7 +20,12 @@ app.use('/', registerRoute)
 
 const port = 4000
 
-app.listen(port, () => {
+app.listen(port, (error) => {
+    if (error) {
+        console.error(error);
+        process.exit(1)
+        return
+    }
     console.log(`app is listening ${port}`)
 })
 

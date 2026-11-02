@@ -1,6 +1,6 @@
 const data = require('../data/facilities')
 const { distance } = require('../utils/distance')
-const { fetchNearbyFacilities, toFacility } = require("./utils/overpass");
+const { fetchNearbyFacilities, toFacility } = require('../utils/overpass');
 
 /**
  * @param {import('express').Request} req
@@ -41,7 +41,17 @@ async function getFacilities(req, res) {
         return res.status(400).json({ error: 'radius must be between 1 to 50'})
     }
 
-    const byType = data.filter((n) => !healthcareType || n.type === healthcareType)
+    let source = data
+
+    try {
+      const element = await fetchNearbyFacilities(lat, longs, radius)
+      source = element.map(toFacility).filter(Boolean)
+    } catch (error) {
+        console.warn(`overpass failed ${error.message}`);
+        
+    }
+
+    const byType = source.filter((n) => !healthcareType || n.type === healthcareType)
 
     const withDistance = byType.map((n) => ({
         ...n,
