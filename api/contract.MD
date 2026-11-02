@@ -100,3 +100,13 @@ What we store
 
 Your conversations are saved in your Senzora account so you can see your chat history.
 We do not sell your information or make it public. Keep this line only if it’s true for your project.
+
+LIST SAVED CONVERSATIONS
+FUNCTION: returns the logged-in user's past chats so the app can show a list and reopen one
+METHOD: GET /conversations
+FRONTEND SENDS: bearer token header, no body, no query values
+SUCCESS: 200 with a bare array, newest first. Each item has id, title, createdAt. A user with no chats gets an empty array []
+ONLY YOURS: a user only ever gets their own conversations, never anyone else's
+ERROR1: no token available, status 401
+ERROR2: this token is invalid or expired, status 401
+ERROR3: something went wrong on the server, status 500
