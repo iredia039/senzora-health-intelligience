@@ -110,3 +110,38 @@ ONLY YOURS: a user only ever gets their own conversations, never anyone else's
 ERROR1: no token available, status 401
 ERROR2: this token is invalid or expired, status 401
 ERROR3: something went wrong on the server, status 500
+
+
+
+## GET /conversations/:id
+
+1. What it does
+   Opens one saved chat with all its messages, so the assistant page can show it and continue it.
+
+2. Method and path
+   GET /conversations/:id   (:id is the conversation id)
+
+3. What the frontend sends
+   Header: Authorization: Bearer <token>
+   No body, no query.
+
+4. Success: 200
+   {
+     "id": 12,
+     "title": "I have a headache since morning",
+     "createdAt": "2026-11-02T18:30:00.000Z",
+     "messages": [
+       { "id": 40, "role": "user", "content": "...", "createdAt": "..." },
+       { "id": 41, "role": "assistant", "content": "...", "createdAt": "..." }
+     ]
+   }
+   Messages are oldest first.
+
+5. Errors
+   401: same two messages as GET /conversations (no token, bad or expired token)
+   404: { "error": "Conversation not found" }
+   - Used when the id does not exist, is not a valid number, or belongs to someone else.
+   - Same message for all three, so nobody can learn which ids exist.
+
+6. Who can see what
+   Only the owner. Other users' chats look exactly like missing chats.
