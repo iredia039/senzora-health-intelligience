@@ -141,6 +141,10 @@ export const clearChat = (): boolean => {
   return write(KEYS.chat, []);
 };
 
+/** Replaces the running chat with a saved server conversation, so the next message continues that conversation. */
+export const openSavedChat = (messages: ChatMessage[], conversationId: number): boolean =>
+  write(KEYS.chat, messages.slice(-MAX_CHAT_MESSAGES)) && saveConversationId(conversationId);
+
 /** Subscribe to changes made in this tab or any other tab. Returns an unsubscribe function. */
 export function subscribeToStorage(onChange: () => void): () => void {
   const onStorage = (e: StorageEvent) => e.key === null || e.key.startsWith(PREFIX) ? onChange() : undefined;

@@ -1,5 +1,5 @@
-import { MOCK_FACILITIES } from "./mock";
-import type { FacilityResult, FacilitySearch } from "./types";
+import { apiRequest } from "@/lib/api";
+import type { Facility, FacilityResult, FacilitySearch } from "./types";
 
 export { AREAS } from "./mock";
 export const RADIUS_OPTIONS = [5, 10, 25, 50] as const;
@@ -16,14 +16,23 @@ export function distanceKm(a: { lat: number; lng: number }, b: { lat: number; ln
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(h));
 }
 
+/** What GET /facilities sends back for each place: a facility without "source", plus the distance. */
+type ApiFacility = Omit<Facility, "source"> & { distanceKm: number };
+
 /**
  * The one place the Find Care page gets its facilities from.
- * Today it filters made-up data. When the API is ready, only this function changes:
- * it will call GET /facilities with the same values and return the same shape.
+ * It calls GET /facilities on the API, which answers with real places from OpenStreetMap
+ * or, if the map service is down, with the demo list. Ids that start with "osm-" are real.
  */
-export function searchFacilities({ lat, lng, type, radiusKm = DEFAULT_RADIUS_KM }: FacilitySearch): FacilityResult[] {
-  return MOCK_FACILITIES.filter((f) => !type || f.type === type)
-    .map((f) => ({ ...f, distanceKm: Math.round(distanceKm({ lat, lng }, f) * 10) / 10 }))
-    .filter((f) => f.distanceKm <= radiusKm)
-    .sort((a, b) => a.distanceKm - b.distanceKm);
+export async function searchFacilities({ lat, lng, type, radiusKm = DEFAULT_RADIUS_KM }: FacilitySearch): Promise<FacilityResult[]> {
+  const params = new URLSearchParams({ lat: String(lat), lng: String(lng), radiusKm: String(radiusKm) });
+  if (type) params.set("type", type);
+
+  const places = await apiRequest<ApiFacility[]>(`/facilities?${params.toString()}`);
+
+  return places.map((place) => ({
+    ...place,
+    source: place.id.startsWith("osm-") ? "osm" : "demo",
+    distanceKm: Math.round(place.distanceKm * 10) / 10,
+  }));
 }

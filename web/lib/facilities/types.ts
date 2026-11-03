@@ -10,17 +10,17 @@ export type Facility = {
   area: string;
   lat: number;
   lng: number;
-  /** Has an emergency department. */
+  /** Has an emergency department. False can also mean "not confirmed" for places from OpenStreetMap. */
   emergency: boolean;
   open24h: boolean;
-  /** "demo" while the places are made up. Real data from the API will use another value. */
-  source: "demo";
+  /** "osm" for real places from OpenStreetMap, "demo" for the made-up fallback list. */
+  source: "osm" | "demo";
 };
 
 /** A facility plus how far it is from the person searching. */
 export type FacilityResult = Facility & { distanceKm: number };
 
-/** What the frontend sends. The API will take the same values as query parameters. */
+/** What the frontend sends. The API takes the same values as query parameters. */
 export type FacilitySearch = {
   lat: number;
   lng: number;

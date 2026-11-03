@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { primaryButton, textLink } from "@/components/ui/buttons";
 import { ApiError } from "@/lib/api";
@@ -10,7 +11,7 @@ import { login, register } from "@/lib/auth";
 
 type Mode = "login" | "register";
 
-const inputClass = "mt-1.5 w-full rounded-xl border border-line bg-canvas px-3.5 py-2.5 text-sm text-fg placeholder:text-muted";
+const inputClass = "w-full rounded-xl border border-line bg-canvas px-3.5 py-2.5 text-sm text-fg placeholder:text-muted";
 
 /** Only same-site paths are allowed, so a crafted link cannot send someone to another site. */
 function safeNext(value: string | null): string {
@@ -18,19 +19,35 @@ function safeNext(value: string | null): string {
 }
 
 function Field(props: { id: string; label: string; type: string; value: string; onChange: (v: string) => void; autoComplete: string }) {
+  const [shown, setShown] = useState(false);
+  const isPassword = props.type === "password";
+
   return (
     <div>
       <label htmlFor={props.id} className="text-sm font-medium text-fg">
         {props.label}
       </label>
-      <input
-        id={props.id}
-        type={props.type}
-        value={props.value}
-        autoComplete={props.autoComplete}
-        onChange={(e) => props.onChange(e.target.value)}
-        className={inputClass}
-      />
+      <div className="relative mt-1.5">
+        <input
+          id={props.id}
+          type={isPassword && shown ? "text" : props.type}
+          value={props.value}
+          autoComplete={props.autoComplete}
+          onChange={(e) => props.onChange(e.target.value)}
+          className={`${inputClass}${isPassword ? " pr-11" : ""}`}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShown((v) => !v)}
+            aria-label={shown ? "Hide password" : "Show password"}
+            aria-pressed={shown}
+            className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-xl text-muted transition-colors hover:text-fg"
+          >
+            {shown ? <EyeOff className="size-[18px]" aria-hidden="true" /> : <Eye className="size-[18px]" aria-hidden="true" />}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

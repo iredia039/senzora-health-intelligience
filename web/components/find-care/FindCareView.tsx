@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useRef, useState } from "react";
 import { Clock, ExternalLink, Hospital, LoaderCircle, LocateFixed, MapPin, Siren, Stethoscope, type LucideIcon } from "lucide-react";
 import { primaryButton, secondaryButton } from "@/components/ui/buttons";
+import { ApiError } from "@/lib/api";
 import { AREAS, DEFAULT_RADIUS_KM, RADIUS_OPTIONS, searchFacilities } from "@/lib/facilities";
 import type { FacilityResult, FacilityType } from "@/lib/facilities/types";
 
@@ -63,6 +64,7 @@ function FacilityCard({ facility }: { facility: FacilityResult }) {
         <Badge>{label}</Badge>
         {facility.emergency && <Badge icon={Siren}>Emergency care</Badge>}
         {facility.open24h && <Badge icon={Clock}>Open 24 hours</Badge>}
+        {facility.source === "osm" && !facility.open24h && <Badge icon={Clock} dashed>Hours not verified</Badge>}
         {facility.source === "demo" && <Badge dashed>Demo data</Badge>}
         <a
           href={`https://www.google.com/maps/dir/?api=1&destination=${facility.lat},${facility.lng}`}
@@ -86,26 +88,55 @@ export function FindCareView() {
   const [locationError, setLocationError] = useState("");
   const [type, setType] = useState<TypeFilter>("all");
   const [radiusKm, setRadiusKm] = useState<number>(DEFAULT_RADIUS_KM);
+  // The city list only appears once sharing a location has failed, or after a city is already chosen.
+  const [showAreas, setShowAreas] = useState(false);
 
-  const results = useMemo(
-    () => (origin ? searchFacilities({ lat: origin.lat, lng: origin.lng, type: type === "all" ? undefined : type, radiusKm }) : []),
-    [origin, type, radiusKm],
-  );
+  const [results, setResults] = useState<FacilityResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  // Each search gets a number. An answer for an older search is ignored, so a slow reply never overwrites a newer one.
+  const latestSearch = useRef(0);
+
+  const runSearch = async (target: Origin, nextType: TypeFilter, nextRadius: number) => {
+    const searchId = ++latestSearch.current;
+    setSearching(true);
+    setSearchError("");
+    try {
+      const found = await searchFacilities({
+        lat: target.lat,
+        lng: target.lng,
+        type: nextType === "all" ? undefined : nextType,
+        radiusKm: nextRadius,
+      });
+      if (searchId !== latestSearch.current) return;
+      setResults(found);
+    } catch (err) {
+      if (searchId !== latestSearch.current) return;
+      setResults([]);
+      setSearchError(err instanceof ApiError ? err.message : "Couldn't load places. Check your connection and try again.");
+    } finally {
+      if (searchId === latestSearch.current) setSearching(false);
+    }
+  };
 
   const useMyLocation = () => {
     setLocationError("");
     if (!("geolocation" in navigator)) {
       setLocationError("This browser cannot share your location. Choose an area below instead.");
+      setShowAreas(true);
       return;
     }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setOrigin({ lat: pos.coords.latitude, lng: pos.coords.longitude, label: "your location" });
+        const here = { lat: pos.coords.latitude, lng: pos.coords.longitude, label: "your location" };
+        setOrigin(here);
         setLocating(false);
+        runSearch(here, type, radiusKm);
       },
       (err) => {
         setLocationError(LOCATION_ERRORS[err.code] ?? LOCATION_ERRORS[2]);
+        setShowAreas(true);
         setLocating(false);
       },
       { timeout: 10_000, maximumAge: 60_000 },
@@ -115,10 +146,42 @@ export function FindCareView() {
   const chooseArea = (id: string) => {
     const area = AREAS.find((a) => a.id === id);
     setLocationError("");
-    setOrigin(area ? { lat: area.lat, lng: area.lng, label: area.label } : null);
+    if (!area) {
+      // Nothing chosen: forget any search that is still running.
+      latestSearch.current++;
+      setOrigin(null);
+      setResults([]);
+      setSearching(false);
+      setSearchError("");
+      return;
+    }
+    const chosen = { lat: area.lat, lng: area.lng, label: area.label };
+    setOrigin(chosen);
+    runSearch(chosen, type, radiusKm);
+  };
+
+  const chooseType = (next: TypeFilter) => {
+    setType(next);
+    if (origin) runSearch(origin, next, radiusKm);
+  };
+
+  const chooseRadius = (next: number) => {
+    setRadiusKm(next);
+    if (origin) runSearch(origin, type, next);
   };
 
   const areaId = AREAS.find((a) => origin && a.label === origin.label)?.id ?? "";
+  const showingDemo = results.some((f) => f.source === "demo");
+
+  let summary = "";
+  if (searching) summary = "Searching";
+  else if (!searchError) {
+    summary = `${results.length} place${results.length === 1 ? "" : "s"} within ${radiusKm} km. ${
+      showingDemo
+        ? "Live map data was not available, so these are sample places for the prototype."
+        : "From OpenStreetMap. Opening hours and emergency details may be missing."
+    }`;
+  }
 
   return (
     <div className="care-workspace space-y-6">
@@ -140,19 +203,21 @@ export function FindCareView() {
               {locating ? "Finding you" : "Use my location"}
             </button>
           </div>
-          <div>
-            <label htmlFor="area" className="block text-sm font-medium text-fg">
-              Or choose an area
-            </label>
-            <select id="area" value={areaId} onChange={(e) => chooseArea(e.target.value)} className={`${selectClass} mt-1.5`}>
-              <option value="">Select a city</option>
-              {AREAS.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          {(showAreas || areaId) && (
+            <div>
+              <label htmlFor="area" className="block text-sm font-medium text-fg">
+                Or choose an area
+              </label>
+              <select id="area" value={areaId} onChange={(e) => chooseArea(e.target.value)} className={`${selectClass} mt-1.5`}>
+                <option value="">Select a city</option>
+                {AREAS.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <p role="status" className={`mt-4 text-sm ${locationError ? "text-danger" : "text-muted"}`}>
@@ -168,7 +233,7 @@ export function FindCareView() {
                 Nearby care
               </h2>
               <p role="status" className="text-sm text-muted">
-                {results.length} place{results.length === 1 ? "" : "s"} within {radiusKm} km. These are sample places for the prototype, not real facilities.
+                {summary}
               </p>
             </div>
             <div className="flex flex-wrap items-end gap-3">
@@ -178,7 +243,7 @@ export function FindCareView() {
                     key={id}
                     type="button"
                     aria-pressed={type === id}
-                    onClick={() => setType(id)}
+                    onClick={() => chooseType(id)}
                     className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${type === id ? "bg-raised text-accent-bright" : "text-muted hover:text-fg"}`}
                   >
                     {label}
@@ -189,7 +254,7 @@ export function FindCareView() {
                 <label htmlFor="radius" className="block text-xs text-muted">
                   Within
                 </label>
-                <select id="radius" value={radiusKm} onChange={(e) => setRadiusKm(Number(e.target.value))} className={`${selectClass} mt-1 py-2`}>
+                <select id="radius" value={radiusKm} onChange={(e) => chooseRadius(Number(e.target.value))} className={`${selectClass} mt-1 py-2`}>
                   {RADIUS_OPTIONS.map((km) => (
                     <option key={km} value={km}>
                       {km} km
@@ -200,7 +265,20 @@ export function FindCareView() {
             </div>
           </div>
 
-          {results.length > 0 ? (
+          {searching ? (
+            <div role="status" className="flex flex-col items-center rounded-2xl border border-dashed border-line px-6 py-14 text-center">
+              <LoaderCircle className="size-6 animate-spin text-accent-bright" aria-hidden="true" />
+              <p className="mt-3 text-sm font-medium text-fg">Looking for places near {origin.label}</p>
+              <p className="mt-1 max-w-sm text-sm text-muted">This can take up to 20 seconds while we check the map.</p>
+            </div>
+          ) : searchError ? (
+            <div role="alert" className="rounded-2xl border border-danger px-6 py-12 text-center">
+              <p className="text-sm font-medium text-danger">{searchError}</p>
+              <button type="button" onClick={() => runSearch(origin, type, radiusKm)} className={`${secondaryButton} mt-4`}>
+                Try again
+              </button>
+            </div>
+          ) : results.length > 0 ? (
             <ul className="grid gap-4 lg:grid-cols-2">
               {results.map((f) => (
                 <FacilityCard key={f.id} facility={f} />
@@ -211,7 +289,7 @@ export function FindCareView() {
               <p className="text-sm font-medium text-fg">No {type === "all" ? "places" : TYPE_INFO[type].label.toLowerCase() + "s"} within {radiusKm} km</p>
               <p className="mx-auto mt-1 max-w-sm text-sm text-muted">Try a larger distance, or a different type of place.</p>
               {radiusKm < RADIUS_OPTIONS[RADIUS_OPTIONS.length - 1] && (
-                <button type="button" onClick={() => setRadiusKm(RADIUS_OPTIONS[RADIUS_OPTIONS.length - 1])} className={`${secondaryButton} mt-4`}>
+                <button type="button" onClick={() => chooseRadius(RADIUS_OPTIONS[RADIUS_OPTIONS.length - 1])} className={`${secondaryButton} mt-4`}>
                   Search within {RADIUS_OPTIONS[RADIUS_OPTIONS.length - 1]} km
                 </button>
               )}
@@ -221,7 +299,7 @@ export function FindCareView() {
       ) : (
         <div className="flex flex-col items-center rounded-2xl border border-dashed border-line px-6 py-14 text-center">
           <MapPin className="size-6 text-accent-bright" aria-hidden="true" />
-          <p className="mt-3 text-sm font-medium text-fg">Share your location or choose a city</p>
+          <p className="mt-3 text-sm font-medium text-fg">Share your location to find care near you</p>
           <p className="mt-1 max-w-sm text-sm text-muted">Hospitals and clinics will appear here, closest first.</p>
         </div>
       )}
