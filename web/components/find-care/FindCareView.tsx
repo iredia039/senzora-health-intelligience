@@ -88,7 +88,8 @@ export function FindCareView() {
   const [locationError, setLocationError] = useState("");
   const [type, setType] = useState<TypeFilter>("all");
   const [radiusKm, setRadiusKm] = useState<number>(DEFAULT_RADIUS_KM);
-  // The city list only appears once sharing a location has failed, or after a city is already chosen.
+  // The city list shows once sharing a location has failed, and stays visible whenever a place is set,
+  // so a wrong location (a laptop guessing from Wi-Fi) can always be corrected.
   const [showAreas, setShowAreas] = useState(false);
 
   const [results, setResults] = useState<FacilityResult[]>([]);
@@ -203,10 +204,10 @@ export function FindCareView() {
               {locating ? "Finding you" : "Use my location"}
             </button>
           </div>
-          {(showAreas || areaId) && (
+          {(showAreas || origin) && (
             <div>
               <label htmlFor="area" className="block text-sm font-medium text-fg">
-                Or choose an area
+                {origin && !areaId ? "Not your location? Choose an area" : "Or choose an area"}
               </label>
               <select id="area" value={areaId} onChange={(e) => chooseArea(e.target.value)} className={`${selectClass} mt-1.5`}>
                 <option value="">Select a city</option>
