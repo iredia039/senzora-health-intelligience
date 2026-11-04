@@ -131,11 +131,23 @@ function hasAny(text, phrases) {
 function checkMessage(message) {
     const text = normalize(message)
 
-    if (hasAny(text, selfHarmPhrases)) {
+  const aboutOther = mentionsOtherPerson(text) && !isAboutSelf(text)
+
+    if (hasAny(text, selfHarmPhrases) && !aboutOther) {
         const educational = isGeneralQuestion(text) && hasAny(text, helpWords)
 
         if (!educational) {
             return { kind: 'self_harm', reply: selfHarmReply }
+        }
+
+        return null
+    }
+
+    if (hasAny(text, otherSelfHarmPhrases)) {
+        const educational = isGeneralQuestion(text) && hasAny(text, helpWords)
+
+        if (!educational) {
+            return { kind: 'self_harm', reply: selfHarmOthersReply }
         }
 
         return null

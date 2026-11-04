@@ -2,7 +2,6 @@
 
 const TOKEN_KEY = "senzora:token";
 const USER_KEY = "senzora:user";
-const CONVERSATION_KEY = "senzora:conversation";
 const CHANGE_EVENT = "senzora:session-change";
 
 export type SessionUser = { id: number; name: string };
@@ -32,6 +31,17 @@ export function loadUser(): SessionUser | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * The start of every storage key that belongs to the logged-in user, like "senzora:u17:".
+ * Each account gets its own prefix, so two accounts in one browser never share data.
+ * Returns null when nobody is logged in.
+ */
+export function userPrefix(): string | null {
+  const user = loadUser();
+  if (!user || typeof user.id !== "number") return null;
+  return `senzora:u${user.id}:`;
 }
 
 /** A stable string that changes when the login changes. Empty means nobody is logged in. */
@@ -66,9 +76,12 @@ export function saveSession(token: string, user: SessionUser): boolean {
 
 export function clearSession(): void {
   try {
+    // Forget which server conversation this user was in (their chat messages stay saved under their own keys).
+    const prefix = userPrefix();
+    if (prefix) window.localStorage.removeItem(`${prefix}conversation`);
+    window.localStorage.removeItem("senzora:conversation");
     window.localStorage.removeItem(TOKEN_KEY);
     window.localStorage.removeItem(USER_KEY);
-    window.localStorage.removeItem(CONVERSATION_KEY);
     window.dispatchEvent(new Event(CHANGE_EVENT));
   } catch {
     /* nothing to clear if storage is unavailable */
