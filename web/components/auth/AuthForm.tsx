@@ -87,7 +87,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
     try {
       await login(email.trim(), password);
-      router.push(next);
+     router.push("/dashboard");
     } catch (err) {
       // The account exists now, so a failed automatic login sends them to the log in page.
       if (isRegister) router.push(`/login?next=${encodeURIComponent(next)}`);

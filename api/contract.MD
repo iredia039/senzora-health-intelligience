@@ -113,7 +113,7 @@ ERROR3: something went wrong on the server, status 500
 
 
 
-## GET /conversations/:id
+GET /conversations/:id
 
 1. What it does
    Opens one saved chat with all its messages, so the assistant page can show it and continue it.
@@ -145,3 +145,29 @@ ERROR3: something went wrong on the server, status 500
 
 6. Who can see what
    Only the owner. Other users' chats look exactly like missing chats.
+
+EDIT NAME
+FUNCTION: changes the name of the logged-in user
+METHOD: PATCH /me
+FRONTEND SENDS: bearer token header, JSON body, no query values. The server trims spaces from the name
+SUCCESS: 200 with the updated user, same shape as GET /me, showing the new name
+ONLY YOURS: a user can only change their own name; the user id comes from the token, never from the body. Any other field in the body (email, password, id) is ignored
+ERROR1: no token available, status 401
+ERROR2: this token is invalid or expired, status 401
+ERROR3: name is missing, not a string, empty after trimming, or longer than 50 characters, status 400, body { error: 'name must be 1 to 50 characters' }
+ERROR4: something went wrong on the server, status 500, body { error: 'something went wrong' }
+
+
+CHANGE PASSWORD
+FUNCTION: lets the logged-in user replace their password after proving they know the current one
+METHOD: PATCH /me/password
+FRONTEND SENDS: bearer token header, JSON body { "currentPassword": "...", "newPassword": "..." }, no query values
+SUCCESS: 200 with { message: 'password changed' }
+ONLY YOURS: a user can only change their own password; the user id comes from the token, never from the body
+ERROR1: no token available, status 401
+ERROR2: this token is invalid or expired, status 401
+ERROR3: currentPassword or newPassword is missing or not a string, status 400, body { error: 'missing fields' }
+ERROR4: newPassword is shorter than 8 characters, status 400, body { error: 'new password must be at least 8 characters' }
+ERROR5: currentPassword does not match the saved password, status 400, body { error: 'current password is wrong' }
+ERROR6: newPassword is the same as currentPassword, status 400, body { error: 'new password must be different' }
+ERROR7: something went wrong on the server, status 500, body { error: 'something went wrong' }

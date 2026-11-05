@@ -112,6 +112,49 @@ async function me(req, res) {
     }
 }
 
+/**
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
+
+async function edit(req, res) {
+    try {
+            const name = req.body.name
+
+    if (typeof name !== "string") {
+        return res.status(400).json({ error: 'name must be 1 to 50 characters long'})
+    }
+
+    const trimmed = name.trim()
+
+    if (trimmed === "" || trimmed.length > 50) {
+        return res.status(400).json({ error: 'name must be 1 to 50 characters long'})
+    }
+
+    const id = req.user.id
+
+const data = await prisma.user.update({
+    where:{
+        id: id,
+    },
+    data:{
+        name: trimmed
+    },
+    select:{
+        id: true,
+        name: true,
+        email: true
+    }
+})
+
+    res.status(200).json(data)
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({ error: 'something went wrong'})
+    }
+}
 
 
-module.exports = { register, login, me }
+
+module.exports = { register, login, me, edit }
