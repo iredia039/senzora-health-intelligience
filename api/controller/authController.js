@@ -1,6 +1,8 @@
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const { prisma } = require('../prisma')
+// const bcrypt = require('bcrypt')
+const data = require('../data/facilities')
 
 /**
  * @param {import('express').Request} req
@@ -156,5 +158,63 @@ const data = await prisma.user.update({
 }
 
 
+/**
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
+async function changePassword(req, res) {
+    try {
+        const currentPassword = req.body.currentPassword
+        const newPassword = req.body.newPassword
 
-module.exports = { register, login, me, edit }
+        if (typeof currentPassword !== "string" || typeof newPassword !== "string") {
+            return res.status(400).json({ error: 'missing fields' })
+        }
+
+        if (newPassword.length < 8) {
+            return res.status(400).json({ error: 'new password must be at least 8 characters' })
+        }
+
+        if (newPassword === currentPassword) {
+            return res.status(400).json({ error: 'new password must be different' })
+        }
+
+        const id = req.user.id
+
+        const data = await prisma.user.findUnique({
+            where:{
+                id: id
+            }
+
+        })
+
+        const compared = await bcrypt.compare(currentPassword, data.hashPassword)
+
+        if (!compared) {
+            return res.status(400).json({ error: 'invalid current password'})
+        }
+
+        const hashed = await bcrypt.hash(newPassword, 10)
+
+        const newData = await prisma.user.update({
+            where:{
+                id: id
+            },
+            data:{
+                hashPassword: hashed
+            }
+        })
+
+        res.status(200).json({ message: 'password changed' })
+
+    } catch (error) {
+        console.log(error);
+        
+        return res.status(500).json({ error: 'something went wrong' })
+    }
+}
+
+
+
+module.exports = { register, login, me, edit, changePassword }
