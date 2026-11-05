@@ -13,7 +13,7 @@ export class ApiError extends Error {
   }
 }
 
-type Options = { method?: "GET" | "POST"; body?: unknown; auth?: boolean };
+type Options = { method?: "GET" | "POST" | "PATCH"; body?: unknown; auth?: boolean };
 
 function errorMessage(data: unknown): string | null {
   if (typeof data !== "object" || data === null) return null;

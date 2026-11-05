@@ -74,6 +74,19 @@ export function saveSession(token: string, user: SessionUser): boolean {
   }
 }
 
+/** Changes only the saved name. The token and the id stay the same, so nobody is logged out. */
+export function updateSessionName(name: string): boolean {
+  try {
+    const user = loadUser();
+    if (!user) return false;
+    window.localStorage.setItem(USER_KEY, JSON.stringify({ ...user, name }));
+    window.dispatchEvent(new Event(CHANGE_EVENT));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function clearSession(): void {
   try {
     // Forget which server conversation this user was in (their chat messages stay saved under their own keys).

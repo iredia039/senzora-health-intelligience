@@ -67,7 +67,7 @@ function ProfileCard({ onNavigate }: { onNavigate?: () => void }) {
   }
 
   return (
-    <Link href="/settings" onClick={onNavigate} className={box}>
+    <Link href="/profile" onClick={onNavigate} className={box}>
       <span className={avatar} aria-hidden="true">
         {user.name.trim().charAt(0).toUpperCase() || "S"}
       </span>
