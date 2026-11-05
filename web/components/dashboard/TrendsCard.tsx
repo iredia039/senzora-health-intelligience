@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Legend, Line, LineChart, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { textLink } from "@/components/ui/buttons";
 import { VITAL_LABEL, VITAL_NAME, VITAL_ORDER, VITAL_UNIT, withUnit } from "@/lib/format";
 import type { Reading, VitalType } from "@/types";
@@ -11,7 +11,20 @@ const axisTick = { fill: "var(--muted)", fontSize: 12 };
 
 /** Heart rate is the first tab, then the others in their usual order. */
 const TAB_ORDER: VitalType[] = ["heart_rate", ...VITAL_ORDER.filter((type) => type !== "heart_rate")];
-const WINDOWS = [{ id: "24h", label: "24h", ms: 86_400_000 }, { id: "7d", label: "7 days", ms: 7 * 86_400_000 }, { id: "30d", label: "30 days", ms: 30 * 86_400_000 }] as const;
+const DAY = 86_400_000;
+const WINDOWS = [
+  { id: "24h", label: "24h", ms: DAY },
+  { id: "7d", label: "7 days", ms: 7 * DAY },
+  { id: "30d", label: "30 days", ms: 30 * DAY },
+  { id: "1y", label: "1 year", ms: 365 * DAY },
+] as const;
+
+/**
+ * Reference values drawn on the chart. These must match the thresholds in lib/analysis.
+ * Only heart rate and blood pressure have one here; temperature and blood oxygen have none yet.
+ */
+const HEART_RATE_RANGE = { low: 60, high: 100 };
+const BP_FLAG = { systolic: 140, diastolic: 90 };
 
 function periodAverage(readings: Reading[], type: VitalType): string | null {
   if (!readings.length) return null;
@@ -36,11 +49,12 @@ export function TrendsCard({ readings }: { readings: Reading[] }) {
     return () => window.clearTimeout(task);
   }, []);
 
+  const selectedWindow = WINDOWS.find((item) => item.id === windowId)!;
+
   const points = useMemo(() => {
     if (now === null) return [];
-    const window = WINDOWS.find((item) => item.id === windowId)!;
-    const from = now - window.ms;
-    return readings.filter((r) => r.type === tab && Date.parse(r.measuredAt) >= from).sort((a, b) => Date.parse(a.measuredAt) - Date.parse(b.measuredAt)).slice(-30).map((r) => ({
+    const from = now - selectedWindow.ms;
+    return readings.filter((r) => r.type === tab && Date.parse(r.measuredAt) >= from).sort((a, b) => Date.parse(a.measuredAt) - Date.parse(b.measuredAt)).slice(-60).map((r) => ({
       label: new Date(r.measuredAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
       bpm: r.type === "heart_rate" ? r.bpm : undefined,
       systolic: r.type === "blood_pressure" ? r.systolic : undefined,
@@ -48,11 +62,10 @@ export function TrendsCard({ readings }: { readings: Reading[] }) {
       celsius: r.type === "body_temperature" ? r.celsius : undefined,
       spo2: r.type === "blood_oxygen" ? r.spo2 : undefined,
     }));
-  }, [now, readings, tab, windowId]);
+  }, [now, readings, tab, selectedWindow.ms]);
 
   const unit = VITAL_UNIT[tab];
   const name = VITAL_NAME[tab];
-  const selectedWindow = WINDOWS.find((item) => item.id === windowId)!;
   const allInWindow = useMemo(
     () => (now === null ? [] : readings.filter((reading) => reading.type === tab && Date.parse(reading.measuredAt) >= now - selectedWindow.ms)),
     [now, readings, selectedWindow.ms, tab],
@@ -66,6 +79,7 @@ export function TrendsCard({ readings }: { readings: Reading[] }) {
   );
   const dot = (color: string) => ({ r: 3, fill: color });
   const lineProps = { type: "monotone" as const, strokeWidth: 2.5, isAnimationActive: true, animationDuration: 700 };
+  const refLabel = (value: string) => ({ value, fill: "var(--muted)", fontSize: 11, position: "insideTopRight" as const });
 
   return (
     <section className="analytics-workspace" aria-labelledby="trends-heading">
@@ -82,19 +96,17 @@ export function TrendsCard({ readings }: { readings: Reading[] }) {
         </div>
       </div>
       <div className="mt-5 flex flex-wrap gap-2" role="group" aria-label="Choose a vital">
-          {TAB_ORDER.map((id) => (
-            <button
-              key={id}
-              type="button"
-              aria-pressed={tab === id}
-              onClick={() => setTab(id)}
-              className={`analytics-tab ${
-                tab === id ? "analytics-tab--active" : ""
-              }`}
-            >
-              {VITAL_LABEL[id]}
-            </button>
-          ))}
+        {TAB_ORDER.map((id) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={tab === id}
+            onClick={() => setTab(id)}
+            className={`analytics-tab ${tab === id ? "analytics-tab--active" : ""}`}
+          >
+            {VITAL_LABEL[id]}
+          </button>
+        ))}
       </div>
 
       <p className="analytics-note">{now === null ? "Preparing saved measurements…" : `Showing ${allInWindow.length} record${allInWindow.length === 1 ? "" : "s"} taken in the last ${selectedWindow.label}. This chart uses saved measurements only.`}</p>
@@ -109,30 +121,47 @@ export function TrendsCard({ readings }: { readings: Reading[] }) {
       {now === null ? (
         <div aria-busy="true" className="mt-5 h-64 animate-pulse rounded-xl border border-line bg-raised/30" />
       ) : points.length >= 2 ? (
-        <div className="analytics-chart" role="img" aria-label={`Line chart of your saved ${name} readings in ${unit}, from ${points[0].label} to ${points[points.length - 1].label}.`}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
-              <CartesianGrid stroke="var(--line)" strokeDasharray="2 5" vertical={false} />
-              <XAxis dataKey="label" tick={axisTick} tickLine={false} axisLine={{ stroke: "var(--line)" }} interval="preserveStartEnd" minTickGap={24} />
-              <YAxis tick={axisTick} tickLine={false} axisLine={false} domain={["auto", "auto"]} width={44} />
-              <Tooltip
-                contentStyle={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, color: "var(--fg)", boxShadow: "0 18px 36px -24px #000" }}
-                labelStyle={{ color: "var(--muted)" }}
-                formatter={(value, seriesName) => [withUnit(String(value), tab), seriesName]}
-              />
-              {tab === "blood_pressure" && <Legend wrapperStyle={{ color: "var(--muted)", fontSize: 12 }} />}
-              {tab === "heart_rate" && <Line {...lineProps} dataKey="bpm" name="Heart rate (bpm)" stroke="var(--accent-bright)" dot={dot("var(--accent-bright)")} />}
-              {tab === "blood_pressure" && (
-                <>
-                  <Line {...lineProps} dataKey="systolic" name="Systolic (mmHg)" stroke="var(--accent-bright)" dot={dot("var(--accent-bright)")} />
-                  <Line {...lineProps} dataKey="diastolic" name="Diastolic (mmHg)" stroke="var(--sky)" strokeDasharray="5 4" dot={dot("var(--sky)")} />
-                </>
-              )}
-              {tab === "body_temperature" && <Line {...lineProps} dataKey="celsius" name="Temperature (°C)" stroke="var(--accent-bright)" dot={dot("var(--accent-bright)")} />}
-              {tab === "blood_oxygen" && <Line {...lineProps} dataKey="spo2" name="Blood oxygen (%)" stroke="var(--accent-bright)" dot={dot("var(--accent-bright)")} />}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        <>
+          <div className="analytics-chart" role="img" aria-label={`Line chart of your saved ${name} readings in ${unit}, from ${points[0].label} to ${points[points.length - 1].label}.`}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
+                <CartesianGrid stroke="var(--line)" strokeDasharray="2 5" vertical={false} />
+                <XAxis dataKey="label" tick={axisTick} tickLine={false} axisLine={{ stroke: "var(--line)" }} interval="preserveStartEnd" minTickGap={24} />
+                <YAxis tick={axisTick} tickLine={false} axisLine={false} domain={["auto", "auto"]} width={44} />
+                {tab === "heart_rate" && (
+                  <ReferenceArea y1={HEART_RATE_RANGE.low} y2={HEART_RATE_RANGE.high} ifOverflow="extendDomain" fill="var(--accent-bright)" fillOpacity={0.1} stroke="none" />
+                )}
+                {tab === "blood_pressure" && (
+                  <>
+                    <ReferenceLine y={BP_FLAG.systolic} ifOverflow="extendDomain" stroke="var(--muted)" strokeDasharray="4 4" label={refLabel(`Flag from ${BP_FLAG.systolic}`)} />
+                    <ReferenceLine y={BP_FLAG.diastolic} ifOverflow="extendDomain" stroke="var(--muted)" strokeDasharray="4 4" label={refLabel(`Flag from ${BP_FLAG.diastolic}`)} />
+                  </>
+                )}
+                <Tooltip
+                  contentStyle={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, color: "var(--fg)", boxShadow: "0 18px 36px -24px #000" }}
+                  labelStyle={{ color: "var(--muted)" }}
+                  formatter={(value, seriesName) => [withUnit(String(value), tab), seriesName]}
+                />
+                {tab === "blood_pressure" && <Legend wrapperStyle={{ color: "var(--muted)", fontSize: 12 }} />}
+                {tab === "heart_rate" && <Line {...lineProps} dataKey="bpm" name="Heart rate (bpm)" stroke="var(--accent-bright)" dot={dot("var(--accent-bright)")} />}
+                {tab === "blood_pressure" && (
+                  <>
+                    <Line {...lineProps} dataKey="systolic" name="Systolic (mmHg)" stroke="var(--accent-bright)" dot={dot("var(--accent-bright)")} />
+                    <Line {...lineProps} dataKey="diastolic" name="Diastolic (mmHg)" stroke="var(--sky)" strokeDasharray="5 4" dot={dot("var(--sky)")} />
+                  </>
+                )}
+                {tab === "body_temperature" && <Line {...lineProps} dataKey="celsius" name="Temperature (°C)" stroke="var(--accent-bright)" dot={dot("var(--accent-bright)")} />}
+                {tab === "blood_oxygen" && <Line {...lineProps} dataKey="spo2" name="Blood oxygen (%)" stroke="var(--accent-bright)" dot={dot("var(--accent-bright)")} />}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          {tab === "heart_rate" && (
+            <p className="mt-2 text-xs text-muted">Shaded band: {HEART_RATE_RANGE.low} to {HEART_RATE_RANGE.high} bpm, the range this app treats as normal. It is a guide, not a diagnosis.</p>
+          )}
+          {tab === "blood_pressure" && (
+            <p className="mt-2 text-xs text-muted">Dashed lines: where this app starts flagging a reading ({BP_FLAG.systolic} systolic, {BP_FLAG.diastolic} diastolic). It is a guide, not a diagnosis.</p>
+          )}
+        </>
       ) : (
         <div className="mt-5 flex h-64 flex-col items-center justify-center rounded-xl border border-dashed border-line px-6 text-center">
           <p className="text-sm font-medium text-fg">
