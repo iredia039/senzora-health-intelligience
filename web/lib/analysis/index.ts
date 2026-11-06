@@ -82,7 +82,13 @@ export function classifyReading(r: Reading): ReadingFlag {
   }
 }
 
-const byNewest = (a: Reading, b: Reading) => Date.parse(b.measuredAt) - Date.parse(a.measuredAt);
+/**
+ * Newest first. When two readings share the same measured time (for example two saved in the
+ * same minute), the one saved last counts as newer, so every screen picks the same "latest".
+ */
+const byNewest = (a: Reading, b: Reading) =>
+  Date.parse(b.measuredAt) - Date.parse(a.measuredAt) ||
+  Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
 const ofType = (readings: Reading[], type: VitalType) => readings.filter((r) => r.type === type);
 
 /** Every reading that has crossed a line, newest first. */
@@ -126,7 +132,9 @@ function numbers(r: Reading): number[] {
 }
 
 export function summarize(readings: Reading[], type: VitalType): VitalSummary {
-  const list = ofType(readings, type).sort((a, b) => -byNewest(a, b));
+  // Oldest to newest. This is the exact reverse of the order the insight cards use,
+  // so the last item here is always the same reading as the first item there.
+  const list = ofType(readings, type).sort(byNewest).reverse();
   if (list.length === 0) return { type, count: 0, readings: list };
 
   // Temperature keeps one decimal; every other vital is shown as whole numbers.
