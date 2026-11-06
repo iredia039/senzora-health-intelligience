@@ -6,6 +6,7 @@ import { CartesianGrid, Legend, Line, LineChart, ReferenceArea, ReferenceLine, R
 import { textLink } from "@/components/ui/buttons";
 import { VITAL_LABEL, VITAL_NAME, VITAL_ORDER, VITAL_UNIT, withUnit } from "@/lib/format";
 import type { Reading, VitalType } from "@/types";
+import { byNewest } from "@/lib/analysis";
 
 const axisTick = { fill: "var(--muted)", fontSize: 12 };
 
@@ -54,7 +55,7 @@ export function TrendsCard({ readings }: { readings: Reading[] }) {
   const points = useMemo(() => {
     if (now === null) return [];
     const from = now - selectedWindow.ms;
-    return readings.filter((r) => r.type === tab && Date.parse(r.measuredAt) >= from).sort((a, b) => Date.parse(a.measuredAt) - Date.parse(b.measuredAt)).slice(-60).map((r) => ({
+    return readings.filter((r) => r.type === tab && Date.parse(r.measuredAt) >= from).sort(byNewest).reverse().slice(-60).map((r) => ({
       label: new Date(r.measuredAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
       bpm: r.type === "heart_rate" ? r.bpm : undefined,
       systolic: r.type === "blood_pressure" ? r.systolic : undefined,

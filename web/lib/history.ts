@@ -1,5 +1,6 @@
 import { classifyReading } from "@/lib/analysis";
 import type { Reading, VitalType } from "@/types";
+import { byNewest } from "@/lib/analysis";
 
 export type HistoryFilters = {
   type: "all" | VitalType;
@@ -23,5 +24,5 @@ export function applyFilters(readings: Reading[], f: HistoryFilters, now = Date.
       (f.status === "all" || classifyReading(r).level !== "normal"),
   );
   const direction = f.sort === "newest" ? -1 : 1;
-  return list.sort((a, b) => direction * (Date.parse(a.measuredAt) - Date.parse(b.measuredAt)));
+return list.sort((a, b) => direction * byNewest(b, a));
 }

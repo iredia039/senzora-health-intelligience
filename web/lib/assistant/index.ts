@@ -1,6 +1,7 @@
 import { ApiError, apiRequest } from "@/lib/api";
 import { clearConversationId, loadConversationId, saveConversationId } from "@/lib/storage";
 import type { ChatMessage, Reading } from "@/types";
+import { byNewest } from "@/lib/analysis";
 
 type ChatbotResponse = { reply: string; conversationId: number; title: string; emergency?: boolean };
 
@@ -9,7 +10,7 @@ const MAX_READINGS = 20;
 
 function toPayload(readings: Reading[]) {
   return [...readings]
-    .sort((a, b) => Date.parse(b.measuredAt) - Date.parse(a.measuredAt))
+    .sort(byNewest)
     .slice(0, MAX_READINGS)
     .map((r) => {
       switch (r.type) {

@@ -12,6 +12,7 @@ import {
   subscribeToStorage,
 } from "@/lib/storage";
 import type { ChatMessage, Preferences, Reading } from "@/types";
+import { byNewest } from "@/lib/analysis";
 
 const noopSubscribe = () => () => {};
 
@@ -25,7 +26,7 @@ export function useReadings(): { ready: boolean; readings: Reading[] } {
   const ready = useHydrated();
   const raw = useSyncExternalStore(subscribeToStorage, getReadingsSnapshot, () => "");
   const readings = useMemo(
-    () => (ready ? loadReadings().sort((a, b) => Date.parse(b.measuredAt) - Date.parse(a.measuredAt)) : []),
+    () => (ready ? loadReadings().sort(byNewest) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `raw` changes whenever the stored readings change
     [ready, raw],
   );
