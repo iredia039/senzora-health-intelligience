@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Activity, ArrowRight, Bot, Droplets, Gauge, HeartPulse, MapPin, Plus, Thermometer } from "lucide-react";
-import { classifyReading } from "@/lib/analysis";
+import { byNewest, classifyReading } from "@/lib/analysis";
 import { VITAL_LABEL, VITAL_ORDER, formatWhen, readingName, readingValue } from "@/lib/format";
 import { useSessionUser } from "@/lib/hooks/useSession";
 import { useReadings } from "@/lib/hooks/useStoredData";
@@ -75,6 +75,7 @@ function VitalTile({ type, reading, previous }: { type: VitalType; reading?: Rea
   );
 }
 
+/** `readings` must already be sorted newest first (the dashboard does this once and passes it down). */
 function IntelligencePanel({ readings }: { readings: Reading[] }) {
   const present = new Set(readings.map((reading) => reading.type));
   const missing = VITAL_ORDER.filter((type) => !present.has(type));
@@ -164,9 +165,11 @@ export function DashboardView() {
   const { readings } = useReadings();
   const user = useSessionUser();
   const [urgentOpen, setUrgentOpen] = useState(false);
-  const latest = (type: VitalType) => readings.find((reading) => reading.type === type);
-  const previous = (type: VitalType) => readings.filter((reading) => reading.type === type)[1];
-  const categories = new Set(readings.map((reading) => reading.type)).size;
+  // Newest first, with ties (same minute) broken by save order, the same rule the Insights page uses.
+  const sorted = [...readings].sort(byNewest);
+  const latest = (type: VitalType) => sorted.find((reading) => reading.type === type);
+  const previous = (type: VitalType) => sorted.filter((reading) => reading.type === type)[1];
+  const categories = new Set(sorted.map((reading) => reading.type)).size;
 
   return (
     <div className="space-y-6">
@@ -176,8 +179,8 @@ export function DashboardView() {
             {user ? `Welcome back, ${user.name}.` : "Your record, in focus."}
           </h2>
           <p className="mt-1 max-w-xl text-sm text-muted">
-            {readings.length
-              ? `${readings.length} saved measurement${readings.length === 1 ? "" : "s"} across ${categories} of ${VITAL_ORDER.length} vitals. Latest recorded ${formatWhen(readings[0].measuredAt)}. Saved on this device, entered by hand.`
+            {sorted.length
+              ? `${sorted.length} saved measurement${sorted.length === 1 ? "" : "s"} across ${categories} of ${VITAL_ORDER.length} vitals. Latest recorded ${formatWhen(sorted[0].measuredAt)}. Saved on this device, entered by hand.`
               : "Record a vital to start building your personal health record."}
           </p>
         </div>
@@ -216,7 +219,7 @@ export function DashboardView() {
       <TrendsCard readings={readings} />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <IntelligencePanel readings={readings} />
+        <IntelligencePanel readings={sorted} />
         <ActivityTimeline readings={readings} />
       </div>
 

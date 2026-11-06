@@ -86,7 +86,7 @@ export function classifyReading(r: Reading): ReadingFlag {
  * Newest first. When two readings share the same measured time (for example two saved in the
  * same minute), the one saved last counts as newer, so every screen picks the same "latest".
  */
-const byNewest = (a: Reading, b: Reading) =>
+export const byNewest = (a: Reading, b: Reading) =>
   Date.parse(b.measuredAt) - Date.parse(a.measuredAt) ||
   Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
 const ofType = (readings: Reading[], type: VitalType) => readings.filter((r) => r.type === type);
