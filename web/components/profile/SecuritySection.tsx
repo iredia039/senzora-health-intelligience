@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { changePassword, logout } from "@/lib/auth";
+import { changePassword } from "@/lib/auth";
 import { card, input, label, Message, primaryButton, secondaryButton, toMessage, type Notice } from "./ui";
+import LogoutButton from "@/components/auth/LogoutButton";
 
 export default function SecuritySection() {
-  const router = useRouter();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -86,21 +85,15 @@ export default function SecuritySection() {
         <h2 id="privacy-title" className="text-lg font-semibold text-fg">
           Privacy and data
         </h2>
-        <p className="mt-1 text-sm text-fg/70">Consent, data export and deleting the data saved on this device are in Settings.</p>
+        <p className="mt-1 text-sm text-fg/70">
+          Senzora does not sell your information. Messages you send to the assistant go to an AI provider (OpenRouter) that may keep them. Consent, data export and deleting the
+          data saved on this device are in Settings.
+        </p>
         <div className="mt-4 flex flex-wrap gap-3">
           <Link href="/settings" className={secondaryButton}>
             Open Settings
           </Link>
-          <button
-            type="button"
-            onClick={() => {
-              logout();
-              router.push("/login");
-            }}
-            className={secondaryButton}
-          >
-            Sign out
-          </button>
+          <LogoutButton className={secondaryButton}>Sign out</LogoutButton>
         </div>
       </section>
 

@@ -161,6 +161,7 @@ function PrivacyCard() {
       <ul className="max-w-2xl list-disc space-y-2 pl-5 text-sm leading-relaxed text-muted">
         <li>Your readings, settings and theme are saved in this browser on this device. They are not uploaded to your account.</li>
         <li>If you create an account, your name and email are stored on the Senzora server, together with your assistant conversations.</li>
+        <li>Senzora does not sell your information.</li>
         <li>
           When you use the assistant, your messages are sent over the internet to an AI provider (OpenRouter and the AI model behind it), which may keep what it receives. Your
           readings are included only while the option under the message box is on.
