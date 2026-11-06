@@ -3,21 +3,18 @@
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { getProfile } from "@/lib/auth";
+import LogoutButton from "@/components/auth/LogoutButton";
 import { getSessionSnapshot, parseSessionUser, subscribeToSession, type SessionUser } from "@/lib/session";
 import OverviewSection from "./OverviewSection";
 import PersonalSection from "./PersonalSection";
 import SecuritySection from "./SecuritySection";
-import UnavailableSection from "./UnavailableSection";
 import { card, primaryButton, secondaryButton } from "./ui";
 
-type SectionId = "overview" | "personal" | "health" | "emergency" | "preferences" | "security";
+type SectionId = "overview" | "personal" | "security";
 
 const SECTIONS: { id: SectionId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "personal", label: "Personal information" },
-  { id: "health", label: "Health information" },
-  { id: "emergency", label: "Emergency contacts" },
-  { id: "preferences", label: "Preferences" },
   { id: "security", label: "Privacy & security" },
 ];
 
@@ -106,25 +103,11 @@ function ProfileContent({ user }: { user: SessionUser }) {
         <div className="min-w-0 flex-1 space-y-6">
           {section === "overview" && <OverviewSection user={user} emailText={emailText} onEdit={() => setSection("personal")} />}
           {section === "personal" && <PersonalSection user={user} emailText={emailText} />}
-          {section === "health" && (
-            <UnavailableSection
-              title="Health information"
-              items={["Blood group, height and weight", "Known allergies", "Existing medical conditions", "Current medications", "Relevant medical history"]}
-            />
-          )}
-          {section === "emergency" && (
-            <UnavailableSection
-              title="Emergency contacts"
-              items={["Contact name, relationship and phone number", "Relevant emergency medical information", "Known severe allergies"]}
-            />
-          )}
-          {section === "preferences" && (
-            <UnavailableSection
-              title="Preferences"
-              items={["Measurement units (kg or lbs) and temperature units (°C or °F)", "Monitoring and notification preferences", "Daily health reminders", "Preferred healthcare facility and pharmacy"]}
-            />
-          )}
           {section === "security" && <SecuritySection />}
+
+          <div className="flex justify-end border-t border-line pt-4">
+            <LogoutButton />
+          </div>
         </div>
       </div>
     </div>
