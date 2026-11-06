@@ -1,11 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { logout } from "@/lib/auth";
 import { card, primaryButton, secondaryButton } from "@/components/profile/ui";
 
 /** A Log out button that asks "Are you sure?" before it logs the user out. */
-export default function LogoutButton({ className }: { className?: string }) {
+export default function LogoutButton({
+  className,
+  disabled,
+  onLoggedOut,
+  children,
+}: {
+  className?: string;
+  disabled?: boolean;
+  onLoggedOut?: () => void;
+  children?: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
 
   // Escape closes the question without logging out.
@@ -20,8 +30,8 @@ export default function LogoutButton({ className }: { className?: string }) {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={className ?? secondaryButton}>
-        Log out
+      <button type="button" disabled={disabled} onClick={() => setOpen(true)} className={className ?? secondaryButton}>
+        {children ?? "Log out"}
       </button>
 
       {open && (
@@ -44,7 +54,7 @@ export default function LogoutButton({ className }: { className?: string }) {
               <button type="button" autoFocus onClick={() => setOpen(false)} className={secondaryButton}>
                 No
               </button>
-              <button type="button" onClick={logout} className={primaryButton}>
+              <button type="button" onClick={() => {logout();  onLoggedOut?.();}} className={primaryButton}>
                 Yes, log out
               </button>
             </div>

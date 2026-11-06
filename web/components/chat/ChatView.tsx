@@ -8,7 +8,7 @@ import { SavedChats } from "@/components/chat/SavedChats";
 import { primaryButton, secondaryButton, textLink } from "@/components/ui/buttons";
 import { ApiError } from "@/lib/api";
 import { askAssistant } from "@/lib/assistant";
-import { logout } from "@/lib/auth";
+import LogoutButton from "@/components/auth/LogoutButton";
 import { loadConversation } from "@/lib/conversations";
 import { useChat, useReadings } from "@/lib/hooks/useStoredData";
 import { getToken, loadUser } from "@/lib/session";
@@ -291,18 +291,10 @@ export function ChatView() {
                 New chat
               </button>
             ))}
-          <button
-            type="button"
-            disabled={sending}
-            onClick={() => {
-              logout();
-              setSession("out");
-            }}
-            className={`${secondaryButton} px-3! py-1.5!`}
-          >
+          <LogoutButton disabled={sending} onLoggedOut={() => setSession("out")} className={`${secondaryButton} cursor-pointer px-3! py-1.5!`}>
             <LogOut className="size-3.5" aria-hidden="true" />
             Log out
-          </button>
+          </LogoutButton>
         </div>
       </div>
 

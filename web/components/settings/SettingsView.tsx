@@ -5,12 +5,12 @@ import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import { Download, Moon, Sun } from "lucide-react";
 import { dangerButton, primaryButton, secondaryButton } from "@/components/ui/buttons";
-import { logout } from "@/lib/auth";
 import { readingsToCsv } from "@/lib/export/csv";
 import { downloadFile, todayStamp } from "@/lib/export/download";
 import { useSessionUser } from "@/lib/hooks/useSession";
 import { useChat, useHydrated, usePreferences, useReadings } from "@/lib/hooks/useStoredData";
 import { setTheme, useTheme } from "@/lib/hooks/useTheme";
+import LogoutButton from "@/components/auth/LogoutButton";
 import {
   hasAssistantConsent,
   loadChat,
@@ -50,9 +50,7 @@ function AccountCard() {
           <p className="text-sm text-fg">
             Logged in as <span className="font-medium">{user.name}</span>.
           </p>
-          <button type="button" onClick={logout} className={secondaryButton}>
-            Log out
-          </button>
+          <LogoutButton className={secondaryButton} />
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-3">
@@ -223,7 +221,7 @@ function DataCard() {
       <div className="mt-6 border-t border-line pt-5">
         <h3 className="text-sm font-medium text-fg">Delete everything</h3>
         <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted">
-          Removes all readings, the chat shown on this device and your theme from this browser. Your account and the conversations saved on the server stay. This can&apos;t be
+        Removes all readings, the chat shown on this device, your assistant consent and your theme from this browser. Your account and the conversations saved on the server stay. This can&apos;t be
           undone, so export first if you want a copy.
         </p>
         {confirming ? (

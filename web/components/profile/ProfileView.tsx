@@ -106,7 +106,7 @@ function ProfileContent({ user }: { user: SessionUser }) {
           {section === "security" && <SecuritySection />}
 
           <div className="flex justify-end border-t border-line pt-4">
-            <LogoutButton />
+            <LogoutButton className="cursor-pointer rounded-xl border border-[#5ce1e6] px-4 py-2 text-sm font-medium text-[#5ce1e6] transition duration-300 ease-in-out hover:-translate-y-0.5 hover:bg-[#5ce1e6] hover:text-[#071321]" />
           </div>
         </div>
       </div>
