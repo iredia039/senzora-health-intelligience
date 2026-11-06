@@ -1,8 +1,6 @@
 export type VitalType = "heart_rate" | "blood_pressure" | "body_temperature" | "blood_oxygen";
 
-/** "demo" readings come from the Load demo data action and are always labelled as such. */
-export type ReadingSource = "manual" | "device" | "demo";
-
+export type ReadingSource = "manual" | "device";
 type ReadingBase = {
   id: string;
   /** ISO 8601 timestamp of when the measurement was taken. */

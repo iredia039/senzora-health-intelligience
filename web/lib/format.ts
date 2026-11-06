@@ -1,6 +1,6 @@
 import type { Reading, ReadingSource, VitalType } from "@/types";
 
-export const SOURCE_LABEL: Record<ReadingSource, string> = { manual: "Entered by you", device: "Device", demo: "Demo data" };
+export const SOURCE_LABEL: Record<ReadingSource, string> = { manual: "Entered by you", device: "Device" };
 
 export const formatWhen = (iso: string) =>
   new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });

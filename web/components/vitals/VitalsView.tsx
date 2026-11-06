@@ -6,9 +6,9 @@ import { VitalIcon } from "@/components/ui/VitalIcon";
 import { dangerButton, secondaryButton, textLink } from "@/components/ui/buttons";
 import { SOURCE_LABEL, VITAL_LABEL, VITAL_ORDER, formatWhen, readingName, readingValue } from "@/lib/format";
 import { useReadings } from "@/lib/hooks/useStoredData";
-import { addDemoReadings, deleteReading, removeDemoReadings } from "@/lib/storage";
 import type { Reading, VitalType } from "@/types";
 import { ReadingForm } from "./ReadingForm";
+import { deleteReading } from "@/lib/storage";
 
 type Filter = "all" | VitalType;
 
@@ -36,7 +36,6 @@ export function VitalsView() {
     );
   }
 
-  const hasDemo = readings.some((r) => r.source === "demo");
   const q = query.trim().toLowerCase();
   const visible = readings.filter((r) => (filter === "all" || r.type === filter) && (q === "" || searchText(r).includes(q)));
 
@@ -52,15 +51,6 @@ export function VitalsView() {
     if (ok && editing?.id === id) setEditing(null);
     setPendingDelete(null);
     setStatus(ok ? "Reading deleted." : "Couldn't delete this reading. Your browser is blocking storage for this site.");
-  };
-
-  const toggleDemo = () => {
-    setPendingDelete(null);
-    if (hasDemo) {
-      setStatus(removeDemoReadings() ? "Demo data removed." : "Couldn't remove demo data. Your browser is blocking storage for this site.");
-    } else {
-      setStatus(addDemoReadings() ? "Demo data loaded. Every demo reading is labelled so you can tell it apart from yours." : "Couldn't load demo data. Your browser is blocking storage for this site.");
-    }
   };
 
   return (
@@ -86,11 +76,6 @@ export function VitalsView() {
           <h2 id="list-heading" className="font-display text-lg font-semibold text-fg">
             Saved readings
           </h2>
-          {readings.length > 0 && (
-            <button type="button" onClick={toggleDemo} className={textLink}>
-              {hasDemo ? "Remove demo data" : "Load demo data"}
-            </button>
-          )}
         </div>
 
         <p role="status" className="mt-2 min-h-5 text-sm text-muted">
@@ -100,12 +85,7 @@ export function VitalsView() {
         {readings.length === 0 ? (
           <div className="mt-3 rounded-xl border border-dashed border-line px-6 py-12 text-center">
             <p className="text-sm font-medium text-fg">No readings yet</p>
-            <p className="mx-auto mt-1 max-w-sm text-sm text-muted">
-              Record your first reading with the form, or load demo data to see how Senzora looks with ten days of readings.
-            </p>
-            <button type="button" onClick={toggleDemo} className={`${secondaryButton} mt-4`}>
-              Load demo data
-            </button>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-muted">Record your first reading with the form on the left.</p>
           </div>
         ) : (
           <>
@@ -175,7 +155,7 @@ export function VitalsView() {
                             </p>
                             <p className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted">
                               {formatWhen(r.measuredAt)}
-                              <span className={`rounded-md border px-1.5 py-0.5 text-[0.7rem] font-medium ${r.source === "demo" ? "border-dashed border-muted" : "border-line"}`}>
+                              <span className="rounded-md border border-line px-1.5 py-0.5 text-[0.7rem] font-medium">
                                 {SOURCE_LABEL[r.source]}
                               </span>
                             </p>

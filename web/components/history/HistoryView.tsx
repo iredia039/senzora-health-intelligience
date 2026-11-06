@@ -136,17 +136,7 @@ export function HistoryView() {
               { value: "flagged", label: "Flagged or urgent only" },
             ]}
           />
-          <Select
-            id="filter-source"
-            label="Source"
-            value={filters.source}
-            onChange={(v) => update("source", v)}
-            options={[
-              { value: "all", label: "Yours and demo" },
-              { value: "yours", label: "Yours only" },
-              { value: "demo", label: "Demo data only" },
-            ]}
-          />
+
           <Select
             id="filter-sort"
             label="Sort"
@@ -210,7 +200,7 @@ export function HistoryView() {
                         </p>
                         <p className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted">
                           {formatWhen(r.measuredAt)}
-                          <span className={`rounded-md border px-1.5 py-0.5 text-[0.7rem] font-medium ${r.source === "demo" ? "border-dashed border-muted" : "border-line"}`}>
+                        <span className="rounded-md border border-line px-1.5 py-0.5 text-[0.7rem] font-medium">
                             {SOURCE_LABEL[r.source]}
                           </span>
                         </p>

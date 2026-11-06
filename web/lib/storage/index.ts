@@ -216,7 +216,7 @@ export function addReading(input: ReadingInput): boolean {
   return saveReadings([...loadReadings(), reading]);
 }
 
-/** Editing a reading makes it yours, so an edited demo reading becomes a manual one. */
+/** An edited reading is always marked as entered by you. */
 export function updateReading(id: string, input: ReadingInput): boolean {
   const readings = loadReadings();
   const existing = readings.find((r) => r.id === id);
@@ -229,45 +229,7 @@ export function deleteReading(id: string): boolean {
   return saveReadings(loadReadings().filter((r) => r.id !== id));
 }
 
-/** Ten days of made-up readings, always labelled "demo". They end one hour ago. */
-export function addDemoReadings(): boolean {
-  const DAY = 86_400_000;
-  const end = Date.now() - 3_600_000;
-  const stamp = new Date().toISOString();
-  const bpm = [72, 75, 70, 78, 74, 76, 73, 80, 77, 74];
-  const systolic = [116, 118, 121, 119, 124];
-  const diastolic = [76, 77, 79, 78, 81];
-  const temperature = [36.6, 36.8, 36.7, 37.0, 36.6, 36.9, 36.7, 36.8, 36.6, 36.9];
-  const oxygen = [97, 98, 97, 96, 98, 97, 98, 97, 96, 98];
-  const demo: Reading[] = [];
-  bpm.forEach((value, i) => {
-    const measuredAt = new Date(end - (bpm.length - 1 - i) * DAY).toISOString();
-    demo.push({ id: newId(), type: "heart_rate", bpm: value, measuredAt, source: "demo", createdAt: stamp, updatedAt: stamp });
-    if (i % 2 === 1) {
-      demo.push({ id: newId(), type: "body_temperature", celsius: temperature[i], measuredAt, source: "demo", createdAt: stamp, updatedAt: stamp });
-    }
-    if (i % 3 === 0) {
-      demo.push({ id: newId(), type: "blood_oxygen", spo2: oxygen[i], measuredAt, source: "demo", createdAt: stamp, updatedAt: stamp });
-    }
-    if (i % 2 === 0) {
-      demo.push({
-        id: newId(),
-        type: "blood_pressure",
-        systolic: systolic[i / 2],
-        diastolic: diastolic[i / 2],
-        measuredAt,
-        source: "demo",
-        createdAt: stamp,
-        updatedAt: stamp,
-      });
-    }
-  });
-  return saveReadings([...loadReadings(), ...demo]);
-}
 
-export function removeDemoReadings(): boolean {
-  return saveReadings(loadReadings().filter((r) => r.source !== "demo"));
-}
 
 /* ---- Assistant consent: saved with a version so changed wording asks again ---- */
 

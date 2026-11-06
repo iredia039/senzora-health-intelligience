@@ -242,9 +242,7 @@ function limitationsFor(type: VitalType, recent: Reading[]): string {
   if (type === "blood_oxygen") {
     parts.push("Pulse oximeters can read lower with cold fingers, nail polish or movement, and can be less accurate on darker skin. People with lung conditions may have a different target set by their doctor.");
   }
-  const demo = recent.filter((r) => r.source === "demo").length;
-  if (demo === recent.length) parts.push("These readings are demo data, not yours.");
-  else if (demo > 0) parts.push("Some of these readings are demo data, not yours.");
+
   return parts.join(" ");
 }
 
