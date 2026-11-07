@@ -171,3 +171,17 @@ ERROR4: newPassword is shorter than 8 characters, status 400, body { error: 'new
 ERROR5: currentPassword does not match the saved password, status 400, body { error: 'current password is wrong' }
 ERROR6: newPassword is the same as currentPassword, status 400, body { error: 'new password must be different' }
 ERROR7: something went wrong on the server, status 500, body { error: 'something went wrong' }
+
+TRANSCRIBE
+FUNCTION: turns a short voice recording of the logged-in user into text using Groq Whisper (whisper-large-v3-turbo)
+METHOD: POST /transcribe
+FRONTEND SENDS: bearer token header, raw audio recording as the request body (Content-Type must start with audio/, for example audio/webm, maximum 5 MB), optional query value lang (two lowercase letters like en) as a language hint
+SUCCESS: 200 with { text: '...' }, text is an empty string when nothing could be heard
+ONLY YOURS: only a logged-in user can use it; nothing is saved on the server, the audio is sent to Groq and only the text comes back
+ERROR1: no token available, status 401
+ERROR2: this token is invalid or expired, status 401
+ERROR3: the request body is empty, or the Content-Type is not audio/*, status 400, body { error: 'send a recording as the request body' }
+ERROR4: recording is over 5 MB, status 413, rejected by express.raw before the controller runs (body is Express's default error response, not the usual JSON { error } shape)
+ERROR5: too many voice requests (Groq rate limit), status 429, body { error: 'too many voice requests, wait a moment and try again' }
+ERROR6: GROQ_API_KEY is missing on the server, status 503, body { error: 'voice transcription is not configured' }
+ERROR7: Groq failed, timed out after 30 seconds or sent unreadable data, status 503, body { error: 'transcription unavailable, please try again' }

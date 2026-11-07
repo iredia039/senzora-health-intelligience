@@ -1,6 +1,3 @@
-// Turns a short voice recording into text with Groq's hosted Whisper model.
-// The frontend sends the raw audio as the request body (see express.raw in routes/authRoutes.js).
-
 function extensionFor(contentType) {
     if (contentType.includes('ogg')) {
         return 'ogg'
