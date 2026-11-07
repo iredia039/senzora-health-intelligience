@@ -49,9 +49,9 @@ if (mail) {
 
     res.status(201).json(saved)
     } catch (error) {
-        res.status(500).json({ error: 'something went wrong, please try again'})
-        
-    }
+  console.error("register error:", error);
+  return res.status(500).json({ error: "something went wrong, please try again" });
+}
 }
 
 async function login(req, res) {
