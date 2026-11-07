@@ -13,7 +13,8 @@ export class ApiError extends Error {
   }
 }
 
-type Options = { method?: "GET" | "POST" | "PATCH"; body?: unknown; auth?: boolean };
+/** body is sent as JSON. blob is sent as it is (a voice recording), with its own content type. */
+type Options = { method?: "GET" | "POST" | "PATCH"; body?: unknown; blob?: Blob; auth?: boolean };
 
 function errorMessage(data: unknown): string | null {
   if (typeof data !== "object" || data === null) return null;
@@ -24,9 +25,10 @@ function errorMessage(data: unknown): string | null {
 }
 
 /** The one place the frontend talks to the API. Pass auth: true to send the saved token. */
-export async function apiRequest<T>(path: string, { method = "GET", body, auth = false }: Options = {}): Promise<T> {
+export async function apiRequest<T>(path: string, { method = "GET", body, blob, auth = false }: Options = {}): Promise<T> {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (blob !== undefined) headers["Content-Type"] = blob.type || "audio/webm";
 
   if (auth) {
     const token = getToken();
@@ -42,7 +44,7 @@ export async function apiRequest<T>(path: string, { method = "GET", body, auth =
     response = await fetch(`${API_URL}${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: blob ?? (body === undefined ? undefined : JSON.stringify(body)),
       signal: controller.signal,
     });
   } catch {

@@ -86,7 +86,7 @@ export default function SecuritySection() {
           Privacy and data
         </h2>
         <p className="mt-1 text-sm text-fg/70">
-          Senzora does not sell your information. Messages you send to the assistant go to an AI provider (OpenRouter) that may keep them. Consent, data export and deleting the
+          Senzora does not sell your information. Messages you send to the assistant go to an AI provider (OpenRouter) that may keep them. Voice recordings may go to a speech-to-text service (Groq). Consent, data export and deleting the
           data saved on this device are in Settings.
         </p>
         <div className="mt-4 flex flex-wrap gap-3">

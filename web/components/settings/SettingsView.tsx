@@ -166,6 +166,9 @@ function PrivacyCard() {
           When you use the assistant, your messages are sent over the internet to an AI provider (OpenRouter and the AI model behind it), which may keep what it receives. Your
           readings are included only while the option under the message box is on.
         </li>
+        <li>
+          If you use voice, your recording may be sent to a speech-to-text service (Groq) to turn it into text, and that service may keep it.
+        </li>
         <li>Find Care uses your location only while you search, and never saves it.</li>
         <li>
           Delete everything below clears what is saved in this browser. It does not delete your account or the conversations saved on the server. Someone else using this browser

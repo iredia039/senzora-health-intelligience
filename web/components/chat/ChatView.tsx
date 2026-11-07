@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Activity, ArrowUp, HeartPulse, History, LogOut, MessageCircleQuestion, Sparkles, SquarePen, Stethoscope, type LucideIcon } from "lucide-react";
+import { Activity, ArrowUp, HeartPulse, History, LogOut, MessageCircleQuestion, Mic, Sparkles, SquarePen, Stethoscope, type LucideIcon } from "lucide-react";
 import { SavedChats } from "@/components/chat/SavedChats";
+import { VoiceSession } from "@/components/chat/VoiceSession";
 import { primaryButton, secondaryButton, textLink } from "@/components/ui/buttons";
 import { ApiError } from "@/lib/api";
 import { askAssistant } from "@/lib/assistant";
@@ -13,6 +14,7 @@ import { loadConversation } from "@/lib/conversations";
 import { useChat, useReadings } from "@/lib/hooks/useStoredData";
 import { getToken, loadUser } from "@/lib/session";
 import { appendChatMessage, clearChat, hasAssistantConsent, openSavedChat, saveAssistantConsent } from "@/lib/storage";
+import { stopSpeaking, useCanSpeak, useDictation, voiceNotice } from "@/lib/voice";
 import type { ChatMessage } from "@/types";
 
 const STARTERS: { text: string; icon: LucideIcon }[] = [
@@ -39,6 +41,15 @@ function messageFor(error: unknown): string {
     return error.message;
   }
   return "The assistant couldn't answer. Try again.";
+}
+
+/** Three vertical bars: the "live voice" icon. */
+function WaveIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className={className} aria-hidden="true">
+      <path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4" />
+    </svg>
+  );
 }
 
 function SignInNotice({ pathname, notice }: { pathname: string; notice: string }) {
@@ -92,6 +103,10 @@ function ConsentNotice({ onAgree }: { onAgree: () => boolean }) {
             Your messages, and your readings if you include them, are sent over the internet to an AI provider (OpenRouter and the AI model behind it). That provider may keep
             what it receives. Please do not write your name, phone number, address or other identifying details.
           </p>
+          <p className="mt-2">
+            If you use voice, your recording may be sent to a speech-to-text service (Groq) to turn it into text. That service may keep it too. Please do not say your name,
+            phone number, address or other identifying details out loud.
+          </p>
         </div>
 
         <div>
@@ -126,7 +141,6 @@ export function ChatView() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [failedText, setFailedText] = useState<string | null>(null);
-  const [confirmClear, setConfirmClear] = useState(false);
   const [consent, setConsent] = useState<"checking" | "given" | "missing">("checking");
   const [session, setSession] = useState<"checking" | "in" | "out">("checking");
   const [userName, setUserName] = useState("");
@@ -134,8 +148,17 @@ export function ChatView() {
   const [loginNotice, setLoginNotice] = useState("");
   const [showSaved, setShowSaved] = useState(false);
   const [opening, setOpening] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  /** What was already typed when voice typing started, so spoken words are added after it. */
+  const dictationBase = useRef("");
+
+  const canSpeak = useCanSpeak();
+  const dictation = useDictation(
+    (text) => setDraft(`${dictationBase.current}${text}`.slice(0, MAX_LENGTH)),
+    (message) => setError(message),
+  );
 
   useEffect(() => {
     // Defer browser-storage hydration so this effect only synchronizes with the client environment.
@@ -179,26 +202,29 @@ export function ChatView() {
     setSession("out");
   }
 
-  async function send(text: string, retry = false) {
+  /** Sends one message. Resolves with the assistant's reply text, or null when it did not work. */
+  async function send(text: string, retry = false): Promise<string | null> {
     const content = text.trim();
-    if (!content || sending || opening) return;
+    if (!content || sending || opening) return null;
+
+    dictation.cancel();
 
     if (!retry) {
       const question: ChatMessage = { id: crypto.randomUUID(), role: "user", content, createdAt: new Date().toISOString() };
       if (!appendChatMessage(question)) {
         setError(STORAGE_ERROR);
-        return;
+        return null;
       }
       setDraft("");
     }
 
     setError("");
     setFailedText(null);
-    setConfirmClear(false);
     setSending(true);
     try {
       const reply = await askAssistant(content, includeReadings ? readings : []);
       if (!appendChatMessage(reply)) setError(STORAGE_ERROR);
+      return reply.content;
     } catch (err) {
       // A 401 clears the saved login, so the page falls back to the log in notice with the reason shown there.
       if (getToken() === null) {
@@ -207,9 +233,22 @@ export function ChatView() {
         setError(messageFor(err));
         setFailedText(content);
       }
+      return null;
     } finally {
       setSending(false);
     }
+  }
+
+  /** Goes straight to an empty chat. The old one stays in Saved chats. */
+  function startNewChat() {
+    if (sending) return;
+    dictation.cancel();
+    setError("");
+    setFailedText(null);
+    setDraft("");
+    setShowSaved(false);
+    if (!clearChat()) setError(STORAGE_ERROR);
+    inputRef.current?.focus();
   }
 
   /** Loads one saved chat from the server and makes it the running chat. */
@@ -218,7 +257,6 @@ export function ChatView() {
 
     setError("");
     setFailedText(null);
-    setConfirmClear(false);
     setOpening(true);
     try {
       const saved = await loadConversation(id);
@@ -240,11 +278,34 @@ export function ChatView() {
     }
   }
 
+  function toggleDictation() {
+    if (dictation.listening) {
+      dictation.stop();
+      return;
+    }
+    setError("");
+    dictationBase.current = draft && !draft.endsWith(" ") ? `${draft} ` : draft;
+    dictation.start();
+  }
+
+  function openVoiceSession() {
+    dictation.cancel();
+    setError("");
+    setVoiceOpen(true);
+  }
+
+  function closeVoiceSession() {
+    stopSpeaking();
+    setVoiceOpen(false);
+  }
+
   const empty = messages.length === 0;
   const nearLimit = draft.length >= MAX_LENGTH - 100;
+  const voiceButton =
+    "grid size-9 place-items-center rounded-xl border transition-all duration-200 active:scale-95 disabled:pointer-events-none disabled:opacity-40";
 
   return (
-    <div className="flex h-[calc(100dvh-10rem)] min-h-[32rem] flex-col overflow-hidden rounded-3xl border border-line bg-card shadow-[0_22px_54px_-42px_var(--accent)]">
+    <div className="relative flex h-[calc(100dvh-10rem)] min-h-[32rem] flex-col overflow-hidden rounded-3xl border border-line bg-card shadow-[0_22px_54px_-42px_var(--accent)]">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <span className="relative grid size-10 shrink-0 place-items-center rounded-xl border border-line bg-raised text-accent-bright">
@@ -267,38 +328,18 @@ export function ChatView() {
             <History className="size-3.5" aria-hidden="true" />
             Saved chats
           </button>
-          {!empty &&
-            (confirmClear ? (
-              <div role="group" aria-label="Confirm starting a new chat" className="flex flex-wrap items-center gap-2">
-                <span className="text-sm text-fg">Start a new chat? This one stays in Saved chats.</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmClear(false);
-                    if (!clearChat()) setError(STORAGE_ERROR);
-                  }}
-                  className={`${secondaryButton} px-3! py-1.5!`}
-                >
-                  Start new chat
-                </button>
-                <button type="button" onClick={() => setConfirmClear(false)} className={`${secondaryButton} px-3! py-1.5!`}>
-                  Keep this chat
-                </button>
-              </div>
-            ) : (
-              <button type="button" disabled={sending} onClick={() => setConfirmClear(true)} className={`${secondaryButton} px-3! py-1.5!`}>
-                <SquarePen className="size-3.5" aria-hidden="true" />
-                New chat
-              </button>
-            ))}
+          {!empty && (
+            <button type="button" disabled={sending} onClick={startNewChat} className={`${secondaryButton} px-3! py-1.5!`}>
+              <SquarePen className="size-3.5" aria-hidden="true" />
+              New chat
+            </button>
+          )}
           <LogoutButton disabled={sending} onLoggedOut={() => setSession("out")} className={`${secondaryButton} cursor-pointer px-3! py-1.5!`}>
             <LogOut className="size-3.5" aria-hidden="true" />
             Log out
           </LogoutButton>
         </div>
       </div>
-
-      {showSaved && <SavedChats onOpen={openChat} onUnauthorized={() => endLogin("Your login ended. Log in again to keep chatting.")} disabled={sending || opening} />}
 
       <div ref={listRef} role="log" aria-label="Conversation" className="flex-1 space-y-5 overflow-y-auto px-4 py-6 sm:px-6">
         {empty && (
@@ -418,7 +459,7 @@ export function ChatView() {
                 send(draft);
               }
             }}
-            placeholder="Ask about your readings, or describe how you feel"
+            placeholder={dictation.listening ? "Listening, speak now" : dictation.transcribing ? "Turning your voice into text" : "Ask about your readings, or describe how you feel"}
             className="block w-full resize-none border-0! bg-transparent px-4 pb-1 pt-3.5 text-sm leading-relaxed text-fg shadow-none! outline-none! placeholder:text-muted"
           />
           <div className="flex items-center justify-between gap-3 px-3 pb-2.5 pt-1">
@@ -446,11 +487,40 @@ export function ChatView() {
                 Include my readings
               </span>
             </div>
-            <div className="flex shrink-0 items-center gap-3">
+            <div className="flex shrink-0 items-center gap-2">
               {nearLimit && (
-                <span className={`text-xs tabular-nums ${draft.length >= MAX_LENGTH ? "text-danger" : "text-muted"}`} aria-live="polite">
+                <span className={`mr-1 text-xs tabular-nums ${draft.length >= MAX_LENGTH ? "text-danger" : "text-muted"}`} aria-live="polite">
                   {draft.length}/{MAX_LENGTH}
                 </span>
+              )}
+              {dictation.supported && (
+                <button
+                  type="button"
+                  onClick={toggleDictation}
+                  disabled={sending || opening || dictation.transcribing}
+                  aria-pressed={dictation.listening}
+                  aria-label={dictation.listening ? "Stop voice typing" : "Start voice typing"}
+                  title={dictation.listening ? "Stop voice typing" : "Voice typing"}
+                  className={`${voiceButton} ${
+                    dictation.listening
+                      ? "pulse-dot border-accent-bright bg-accent-bright text-canvas"
+                      : "border-line bg-raised text-fg hover:border-accent-bright hover:text-accent-bright"
+                  }`}
+                >
+                  <Mic className="size-[18px]" aria-hidden="true" />
+                </button>
+              )}
+              {dictation.supported && canSpeak && (
+                <button
+                  type="button"
+                  onClick={openVoiceSession}
+                  disabled={sending || opening}
+                  aria-label="Start live voice session"
+                  title="Live voice session"
+                  className={`${voiceButton} border-line bg-raised text-fg hover:border-accent-bright hover:text-accent-bright`}
+                >
+                  <WaveIcon className="size-[18px]" />
+                </button>
               )}
               <button
                 type="submit"
@@ -469,8 +539,30 @@ export function ChatView() {
             ? "You have no saved readings yet. "
             : "Readings are off by default and reach the AI provider only while this is on. "}
           General information, not a diagnosis. In an emergency, contact your local emergency service. Enter sends, Shift+Enter adds a new line.
+          {dictation.supported && ` ${voiceNotice(dictation.mode)}`}
         </p>
       </form>
+
+      {showSaved && (
+        <div className="absolute inset-0 z-20 flex">
+          <button
+            type="button"
+            aria-label="Close saved chats"
+            tabIndex={-1}
+            onClick={() => setShowSaved(false)}
+            className="fade-in absolute inset-0 cursor-default bg-canvas/70 backdrop-blur-sm"
+          />
+          <SavedChats
+            onOpen={openChat}
+            onNewChat={startNewChat}
+            onClose={() => setShowSaved(false)}
+            onUnauthorized={() => endLogin("Your login ended. Log in again to keep chatting.")}
+            disabled={sending || opening}
+          />
+        </div>
+      )}
+
+      {voiceOpen && <VoiceSession onSend={(text) => send(text.slice(0, MAX_LENGTH))} onClose={closeVoiceSession} />}
     </div>
   );
 }

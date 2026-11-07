@@ -1,6 +1,7 @@
 const askModel = require('../utils/openRouter')
 const systemPrompt = require('../utils/systemPrompt')
 const checkEmergency = require('../utils/emergencyChecks')
+const { makeTitle } = require("../utils/openRouter");
 const { prisma } = require('../prisma')
 
 /**
@@ -73,7 +74,12 @@ async function chatbot(req, res) {
 
     const userId = req.user.id
 
+    // The emergency check only needs the message and readings, so it runs first.
+    // That lets an emergency chat get a plain title without sending the message to the AI provider.
+    const emergency = checkEmergency(message, readings)
+
     let conversation = null
+    let isNewChat = false
 
     if (conversationId !== undefined) {
         conversation = await prisma.conversation.findUnique({
@@ -84,15 +90,16 @@ async function chatbot(req, res) {
             return res.status(404).json({ error: 'conversation not found' })
         }
     } else {
+        isNewChat = true
+
+        // Temporary title: it is replaced by a short topic once the reply is ready.
         conversation = await prisma.conversation.create({
             data: {
                 userId: userId,
-                title: message.slice(0, 40)
+                title: emergency ? "Urgent message" : message.slice(0, 40)
             }
         })
     }
-
-    const emergency = checkEmergency(message, readings)
 
     if (emergency) {
         try {
@@ -148,6 +155,9 @@ async function chatbot(req, res) {
         { role: "user", content: userContent }
     ]
 
+    // For a new chat, the title is made at the same time as the reply, so it adds no waiting.
+    // makeTitle never throws: when it fails it returns the first 40 characters.
+
     let reply
 
     try {
@@ -168,6 +178,18 @@ async function chatbot(req, res) {
     } catch (error) {
         console.error(error)
         return res.status(500).json({ error: 'something went wrong, please try again' })
+    }
+
+    if (isNewChat) {
+        const chatId = conversation.id
+
+        // The reply is sent now. The title is asked for after it, then saved when ready.
+        makeTitle(message)
+            .then((title) => prisma.conversation.update({
+                where: { id: chatId },
+                data: { title: title }
+            }))
+            .catch((error) => console.error(error))
     }
 
     return res.status(200).json({
