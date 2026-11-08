@@ -88,4 +88,20 @@ async function sendPasswordChangeEmail(to, name, code) {
     })
 }
 
-module.exports = { sendVerificationEmail, sendPasswordChangeEmail }
+async function sendPasswordResetEmail(to, name, code) {
+    await sendMail({
+        to,
+        name,
+        subject: `${code} is your Senzora password reset code`,
+        html: codeEmailHtml(
+            'Reset your password',
+            `Hi ${escapeHtml(name)}, use this code to choose a new password for your Senzora account:`,
+            code,
+            'It expires in 10 minutes. If you did not ask for this, ignore this email. Your password has not changed.'
+        ),
+        text: `Your Senzora password reset code is ${code}. It expires in 10 minutes. If you did not ask for this, ignore this email.`,
+        devLog: `[dev] password reset code for ${to}: ${code}`
+    })
+}
+
+module.exports = { sendVerificationEmail, sendPasswordChangeEmail, sendPasswordResetEmail }

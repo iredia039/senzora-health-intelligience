@@ -21,7 +21,7 @@ function safeNext(value: string | null): string {
   return value && value.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
 }
 
-function Field(props: { id: string; label: string; type: string; value: string; onChange: (v: string) => void; autoComplete: string }) {
+export function Field(props: { id: string; label: string; type: string; value: string; onChange: (v: string) => void; autoComplete: string }) {
   const [shown, setShown] = useState(false);
   const isPassword = props.type === "password";
 
@@ -261,6 +261,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
               <Field id="email" label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" />
               <Field id="password" label="Password" type="password" value={password} onChange={setPassword} autoComplete={isRegister ? "new-password" : "current-password"} />
 
+              {!isRegister && (
+                <div className="-mt-1 text-right text-sm">
+                  <Link href="/forgot-password" className={textLink}>
+                    Forgot password?
+                  </Link>
+                </div>
+              )}
+
               {error && (
                 <p role="alert" className="text-sm text-danger">
                   {error}
@@ -280,7 +288,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
             </p>
           </>
         )}
-
       </section>
     </main>
   );

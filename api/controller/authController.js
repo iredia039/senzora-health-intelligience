@@ -5,7 +5,7 @@ const { prisma } = require('../prisma')
 const data = require('../data/facilities')
 const { checkPassword } = require('../utils/checkPassword')
 const { MAX_ATTEMPTS, generateCode, codeMatches, newCodeFields, newPasswordCodeFields, secondsUntilResend } = require('../utils/verification')
-const { sendVerificationEmail, sendPasswordChangeEmail } = require('../utils/mailer')
+const { sendVerificationEmail, sendPasswordChangeEmail, sendPasswordResetEmail } = require('../utils/mailer')
 
 /**
  * @param {import('express').Request} req
@@ -397,6 +397,100 @@ async function confirmPasswordChange(req, res) {
     }
 }
 
+async function forgotPassword(req, res) {
+    try {
+        const email = req.body.email
+
+        if (!email || typeof email !== 'string') {
+            return res.status(400).json({ error: 'missing fields' })
+        }
+
+        // The answer is always the same, so nobody can use this form to learn which emails have accounts.
+        const reply = { message: 'a code was sent to your email' }
+
+        const user = await prisma.user.findUnique({ where: { email } })
+
+        if (!user || !user.emailVerified || secondsUntilResend(user.passwordCodeSentAt) > 0) {
+            return res.status(200).json(reply)
+        }
+
+        const code = generateCode()
+
+        // pendingHashPassword stays empty: that is how a reset is told apart from a logged-in password change.
+        await prisma.user.update({
+            where: { id: user.id },
+            data: newPasswordCodeFields(code, null)
+        })
+
+        try {
+            await sendPasswordResetEmail(user.email, user.name, code)
+        } catch (error) {
+            console.error('password reset email error:', error)
+        }
+
+        return res.status(200).json(reply)
+    } catch (error) {
+        console.error('forgot password error:', error)
+        return res.status(500).json({ error: 'something went wrong, please try again' })
+    }
+}
+
+async function resetPassword(req, res) {
+    try {
+        const { email, code, newPassword } = req.body
+
+        if (!email || !code || !newPassword || typeof email !== 'string' || typeof code !== 'string') {
+            return res.status(400).json({ error: 'missing fields' })
+        }
+
+        const passwordError = checkPassword(newPassword)
+        if (passwordError) {
+            return res.status(400).json({ error: passwordError })
+        }
+
+        // Every code failure gets this same answer, so it reveals nothing about the account.
+        const invalid = { error: 'invalid or expired code, please request a new one' }
+
+        const user = await prisma.user.findUnique({ where: { email } })
+
+        // A waiting logged-in password change (pendingHashPassword set) is never a reset.
+        if (!user || !user.passwordCodeHash || user.pendingHashPassword || user.passwordCodeExpiresAt < new Date()) {
+            return res.status(400).json(invalid)
+        }
+
+        if (user.passwordCodeAttempts >= MAX_ATTEMPTS) {
+            return res.status(400).json(invalid)
+        }
+
+        if (!codeMatches(code, user.passwordCodeHash)) {
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { passwordCodeAttempts: { increment: 1 } }
+            })
+            return res.status(400).json(invalid)
+        }
+
+        const hashed = await bcrypt.hash(newPassword, 10)
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                hashPassword: hashed,
+                pendingHashPassword: null,
+                passwordCodeHash: null,
+                passwordCodeExpiresAt: null,
+                passwordCodeAttempts: 0,
+                passwordCodeSentAt: null
+            }
+        })
+
+        return res.status(200).json({ message: 'password changed' })
+    } catch (error) {
+        console.error('reset password error:', error)
+        return res.status(500).json({ error: 'something went wrong, please try again' })
+    }
+}
 
 
-module.exports = { register, login, me, edit, requestPasswordChange, confirmPasswordChange, verifyEmail, resendCode }
+
+module.exports = { register, login, me, edit, requestPasswordChange, confirmPasswordChange, verifyEmail, resendCode, forgotPassword, resetPassword }

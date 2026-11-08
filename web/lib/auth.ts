@@ -56,3 +56,13 @@ export async function requestPasswordChange(currentPassword: string, newPassword
 export async function confirmPasswordChange(code: string): Promise<void> {
   await apiRequest("/me/password/confirm", { method: "POST", body: { code }, auth: true });
 }
+
+/** Emails a 6-digit code if the account exists. The server answers the same way either way. */
+export async function requestPasswordReset(email: string): Promise<void> {
+  await apiRequest("/forgot-password", { method: "POST", body: { email } });
+}
+
+/** Checks the code and saves the new password. The person then logs in as usual. */
+export async function resetPassword(email: string, code: string, newPassword: string): Promise<void> {
+  await apiRequest("/reset-password", { method: "POST", body: { email, code, newPassword } });
+}

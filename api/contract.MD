@@ -185,28 +185,55 @@ ERROR4: recording is over 5 MB, status 413, rejected by express.raw before the c
 ERROR5: too many voice requests (Groq rate limit), status 429, body { error: 'too many voice requests, wait a moment and try again' }
 ERROR6: GROQ_API_KEY is missing on the server, status 503, body { error: 'voice transcription is not configured' }
 ERROR7: Groq failed, timed out after 30 seconds or sent unreadable data, status 503, body { error: 'transcription unavailable, please try again' }
-## Email verification
+Email verification
 
-### POST /register (changed)
+POST /register (changed)
 - Does: creates the account as unverified and emails a 6-digit code (valid 10 minutes). If the email belongs to an unverified account, the signup starts over with the new details.
 - Sends: `{ name, email, password, phone? }`
 - Success: `201 { name, email, needsVerification: true }`
 - Errors: `400` missing fields, `409` email already used by a verified account, `429` unverified account asked for a code less than 60 seconds ago, `502` the email could not be sent, `500` server error
 - Auth: none
 
-### POST /verify-email
+POST /verify-email
 - Does: checks the code and marks the email as verified.
 - Sends: `{ email, code }`
 - Success: `200 { message: 'email verified' }` (`'email already verified'` if it was done before)
 - Errors: `400` missing fields, wrong code, or expired code; `429` 5 wrong attempts used (request a new code); `500` server error
 - Auth: none (the user has no token yet)
 
-### POST /resend-code
+POST /resend-code
 - Does: sends a new code and invalidates the old one.
 - Sends: `{ email }`
 - Success: `200 { message: 'if this email needs verification, a new code has been sent' }` (same reply even if the email is unknown or already verified)
 - Errors: `400` missing fields, `429` asked less than 60 seconds ago, `502` the email could not be sent, `500` server error
 - Auth: none
 
-### POST /login (changed)
+POST /login (changed)
 - New error: `403 { error: 'please verify your email first', code: 'EMAIL_NOT_VERIFIED' }` when the password is right but the email is not verified.
+
+
+REQUEST PASSWORD CHANGE  POST /me/password/request   (login required)
+Body: { currentPassword, newPassword }
+200 { message: 'verification code sent' }, emailed code expires in 10 minutes, nothing changes yet
+400 missing fields | password must be at least 8 characters long | password must contain at least one capital letter | password must contain at least one number | current password is wrong | new password must be different from the current one
+404 user not found
+429 please wait N seconds before trying again
+502 we could not send the verification email, please try again
+Note: a wrong current password is 400, not 401, because the frontend logs out on any 401.
+
+CONFIRM PASSWORD CHANGE  POST /me/password/confirm   (login required)
+Body: { code }
+200 { message: 'password changed' }
+400 missing fields | no password change is waiting, please start again | code expired, please request a new one | wrong code
+404 user not found
+429 too many wrong attempts, please request a new code
+
+FORGOT PASSWORD  POST /forgot-password   (public)
+Body: { email }
+200 { message: 'if an account exists for that email, a code was sent' }, always the same answer, whether or not the email has an account; a code is only sent for verified accounts, one per 60 seconds
+400 missing fields
+
+RESET PASSWORD  POST /reset-password   (public)
+Body: { email, code, newPassword }
+200 { message: 'password changed' }, the person logs in afterwards
+400 missing fields | the three password rule messages | invalid or expired code, please request a new one (wrong code, expired code, too many attempts and unknown email all give this one message)
