@@ -1,11 +1,14 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { primaryButton, secondaryButton } from "@/components/ui/buttons";
 import { toLocalInput } from "@/lib/format";
+import { useSessionUser } from "@/lib/hooks/useSession";
 import { addReading, updateReading } from "@/lib/storage";
 import type { Reading, ReadingInput } from "@/types";
 
@@ -152,6 +155,8 @@ export function ReadingForm({
   onSaved: (message: string) => void;
   onCancel: () => void;
 }) {
+  const user = useSessionUser();
+  const pathname = usePathname();
   const {
     register,
     handleSubmit,
@@ -186,6 +191,25 @@ export function ReadingForm({
     if (!editing) reset({ ...blank(), type: v.type });
     onSaved(editing ? "Changes saved." : "Reading saved.");
   };
+
+  // Readings belong to an account, so without a login there is no form, only a way to log in or sign up.
+  if (!user) {
+    const next = `?next=${encodeURIComponent(pathname)}`;
+    return (
+      <div className="mt-4 rounded-xl border border-dashed border-line px-5 py-8 text-center">
+        <p className="text-sm font-medium text-fg">Log in to record readings</p>
+        <p className="mx-auto mt-1 max-w-xs text-sm text-muted">Readings are saved to your account on this device, so you need to be logged in first.</p>
+        <div className="mt-4 flex flex-wrap justify-center gap-3">
+          <Link href={`/login${next}`} className={`${primaryButton} inline-flex items-center justify-center`}>
+            Log in
+          </Link>
+          <Link href={`/register${next}`} className={`${secondaryButton} inline-flex items-center justify-center`}>
+            Sign up
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-4 space-y-4">

@@ -7,8 +7,19 @@ type LoginResponse = { token: string; user: SessionUser };
 /** What GET /me and PATCH /me send back. */
 export type Profile = { id: number; name: string; email: string };
 
+/** Creates the account as unverified and emails a 6-digit code. The person is not logged in yet. */
 export async function register(name: string, email: string, password: string): Promise<void> {
   await apiRequest("/register", { method: "POST", body: { name, email, password } });
+}
+
+/** Checks the 6-digit code from the email. After this the account can log in. */
+export async function verifyEmail(email: string, code: string): Promise<void> {
+  await apiRequest("/verify-email", { method: "POST", body: { email, code } });
+}
+
+/** Sends a new code. The server allows one every 60 seconds and answers 429 when it is too soon. */
+export async function resendCode(email: string): Promise<void> {
+  await apiRequest("/resend-code", { method: "POST", body: { email } });
 }
 
 export async function login(email: string, password: string): Promise<SessionUser> {
@@ -36,6 +47,12 @@ export async function updateName(name: string): Promise<Profile> {
   return data;
 }
 
-export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
-  await apiRequest("/me/password", { method: "PATCH", body: { currentPassword, newPassword }, auth: true });
+/** Checks both passwords and emails a 6-digit code. The password is not changed yet. */
+export async function requestPasswordChange(currentPassword: string, newPassword: string): Promise<void> {
+  await apiRequest("/me/password/request", { method: "POST", body: { currentPassword, newPassword }, auth: true });
+}
+
+/** Checks the code from the email. Only then does the new password take effect. */
+export async function confirmPasswordChange(code: string): Promise<void> {
+  await apiRequest("/me/password/confirm", { method: "POST", body: { code }, auth: true });
 }

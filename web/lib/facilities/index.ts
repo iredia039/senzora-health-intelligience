@@ -22,7 +22,7 @@ type ApiFacility = Omit<Facility, "source"> & { distanceKm: number };
 /**
  * The one place the Find Care page gets its facilities from.
  * It calls GET /facilities on the API, which answers with real places from OpenStreetMap
- * or, if the map service is down, with the demo list. Ids that start with "osm-" are real.
+ * or, if the map service is down, with the demo list. Ids that start with "geo-" are real.
  */
 export async function searchFacilities({ lat, lng, type, radiusKm = DEFAULT_RADIUS_KM }: FacilitySearch): Promise<FacilityResult[]> {
   const params = new URLSearchParams({ lat: String(lat), lng: String(lng), radiusKm: String(radiusKm) });
@@ -32,7 +32,7 @@ export async function searchFacilities({ lat, lng, type, radiusKm = DEFAULT_RADI
 
   return places.map((place) => ({
     ...place,
-    source: place.id.startsWith("osm-") ? "osm" : "demo",
+      source: place.id.startsWith("geo-") ? "osm" : "demo",
     distanceKm: Math.round(place.distanceKm * 10) / 10,
   }));
 }

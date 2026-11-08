@@ -65,7 +65,7 @@ function SignInNotice({ pathname, notice }: { pathname: string; notice: string }
         </p>
       )}
       <p className="mt-3 text-sm leading-relaxed text-muted">
-        Your conversations are saved in your Senzora account, so the assistant needs to know who you are. Your vitals, Insights and History keep working without an account.
+        Your conversations are saved in your Senzora account, so the assistant needs to know who you are.
       </p>
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <Link href={`/login?next=${next}`} className={primaryButton}>

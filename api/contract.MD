@@ -185,3 +185,28 @@ ERROR4: recording is over 5 MB, status 413, rejected by express.raw before the c
 ERROR5: too many voice requests (Groq rate limit), status 429, body { error: 'too many voice requests, wait a moment and try again' }
 ERROR6: GROQ_API_KEY is missing on the server, status 503, body { error: 'voice transcription is not configured' }
 ERROR7: Groq failed, timed out after 30 seconds or sent unreadable data, status 503, body { error: 'transcription unavailable, please try again' }
+## Email verification
+
+### POST /register (changed)
+- Does: creates the account as unverified and emails a 6-digit code (valid 10 minutes). If the email belongs to an unverified account, the signup starts over with the new details.
+- Sends: `{ name, email, password, phone? }`
+- Success: `201 { name, email, needsVerification: true }`
+- Errors: `400` missing fields, `409` email already used by a verified account, `429` unverified account asked for a code less than 60 seconds ago, `502` the email could not be sent, `500` server error
+- Auth: none
+
+### POST /verify-email
+- Does: checks the code and marks the email as verified.
+- Sends: `{ email, code }`
+- Success: `200 { message: 'email verified' }` (`'email already verified'` if it was done before)
+- Errors: `400` missing fields, wrong code, or expired code; `429` 5 wrong attempts used (request a new code); `500` server error
+- Auth: none (the user has no token yet)
+
+### POST /resend-code
+- Does: sends a new code and invalidates the old one.
+- Sends: `{ email }`
+- Success: `200 { message: 'if this email needs verification, a new code has been sent' }` (same reply even if the email is unknown or already verified)
+- Errors: `400` missing fields, `429` asked less than 60 seconds ago, `502` the email could not be sent, `500` server error
+- Auth: none
+
+### POST /login (changed)
+- New error: `403 { error: 'please verify your email first', code: 'EMAIL_NOT_VERIFIED' }` when the password is right but the email is not verified.

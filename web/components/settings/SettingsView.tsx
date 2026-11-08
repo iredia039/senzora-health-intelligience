@@ -43,7 +43,7 @@ function AccountCard() {
     <Card
       id="account-heading"
       title="Account"
-      description="An account keeps your assistant conversations saved. Vitals, Insights and History work without one."
+      description="An account keeps your assistant conversations saved."
     >
       {user ? (
         <div className="flex flex-wrap items-center gap-3">

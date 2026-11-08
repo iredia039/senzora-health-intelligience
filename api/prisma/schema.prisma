@@ -21,6 +21,21 @@ model User {
   conversations Conversation[]
   createdAt     DateTime        @default(now())
   phone         String?
+
+  // Email verification. The database default is true so accounts that already exist
+  // stay verified. register() sets it to false explicitly for every new signup.
+  emailVerified       Boolean   @default(true)
+  verifyCodeHash      String?
+  verifyCodeExpiresAt DateTime?
+  verifyAttempts      Int       @default(0)
+  verifyCodeSentAt    DateTime?
+
+    // Password change confirmation. The new password is stored hashed until the code is confirmed.
+  pendingHashPassword      String?
+  passwordCodeHash         String?
+  passwordCodeExpiresAt    DateTime?
+  passwordCodeAttempts     Int       @default(0)
+  passwordCodeSentAt       DateTime?
 }
 
 model Conversation {

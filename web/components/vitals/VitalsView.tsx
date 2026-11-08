@@ -5,6 +5,7 @@ import { Pencil, Search, Trash2 } from "lucide-react";
 import { VitalIcon } from "@/components/ui/VitalIcon";
 import { dangerButton, secondaryButton, textLink } from "@/components/ui/buttons";
 import { SOURCE_LABEL, VITAL_LABEL, VITAL_ORDER, formatWhen, readingName, readingValue } from "@/lib/format";
+import { useSessionUser } from "@/lib/hooks/useSession";
 import { useReadings } from "@/lib/hooks/useStoredData";
 import type { Reading, VitalType } from "@/types";
 import { ReadingForm } from "./ReadingForm";
@@ -22,6 +23,7 @@ const searchText = (r: Reading) =>
 
 export function VitalsView() {
   const { ready, readings } = useReadings();
+  const user = useSessionUser();
   const [editing, setEditing] = useState<Reading | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -84,8 +86,10 @@ export function VitalsView() {
 
         {readings.length === 0 ? (
           <div className="mt-3 rounded-xl border border-dashed border-line px-6 py-12 text-center">
-            <p className="text-sm font-medium text-fg">No readings yet</p>
-            <p className="mx-auto mt-1 max-w-sm text-sm text-muted">Record your first reading with the form on the left.</p>
+            <p className="text-sm font-medium text-fg">{user ? "No readings yet" : "Log in to see your readings"}</p>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-muted">
+              {user ? "Record your first reading with the form on the left." : "Readings are saved to your account, so there is nothing to show until you log in."}
+            </p>
           </div>
         ) : (
           <>

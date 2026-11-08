@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Menu, User, X } from "lucide-react";
+import { Bell, Menu, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Logo } from "@/components/brand/Logo";
+import { primaryButton } from "@/components/ui/buttons";
 import { NAV_ITEMS } from "./nav";
 import { countRecentFlags } from "@/lib/analysis";
 import { useHydrated, usePreferences, useReadings } from "@/lib/hooks/useStoredData";
@@ -41,30 +42,39 @@ function NavLinks({ onNavigate, compact = false }: { onNavigate?: () => void; co
   );
 }
 
-function ProfileCard({ onNavigate }: { onNavigate?: () => void }) {
+/** The Log in and Sign up buttons shown to anyone who is not logged in. fill makes them share the row equally. */
+function AuthButtons({ onNavigate, fill = false }: { onNavigate?: () => void; fill?: boolean }) {
+  const pathname = usePathname();
+  const next = `?next=${encodeURIComponent(pathname)}`;
+  const share = fill ? " flex-1" : "";
+
+  return (
+    <div className="flex items-center gap-2">
+      <Link
+        href={`/login${next}`}
+        onClick={onNavigate}
+        className={`inline-flex h-10 items-center justify-center whitespace-nowrap rounded-xl border border-line bg-card px-4 text-sm font-medium text-fg transition-colors hover:bg-raised${share}`}
+      >
+        Log in
+      </Link>
+      <Link href={`/register${next}`} onClick={onNavigate} className={`${primaryButton} inline-flex h-10 items-center justify-center whitespace-nowrap${share}`}>
+        Sign up
+      </Link>
+    </div>
+  );
+}
+
+function ProfileCard({ onNavigate, fill = false }: { onNavigate?: () => void; fill?: boolean }) {
   const hydrated = useHydrated();
   const user = useSessionUser();
-  const pathname = usePathname();
 
   // Nothing is shown until the browser has checked for a login, so a name never flashes in or out.
   if (!hydrated) return <div aria-hidden="true" className="h-[3.625rem] rounded-xl border border-line bg-card" />;
 
+  if (!user) return <AuthButtons onNavigate={onNavigate} fill={fill} />;
+
   const box = "flex items-center gap-3 rounded-xl border border-line bg-card px-3 py-2.5 transition-colors hover:bg-raised";
   const avatar = "grid size-9 place-items-center rounded-full bg-accent/15 text-sm font-semibold text-accent-bright";
-
-  if (!user) {
-    return (
-      <Link href={`/login?next=${encodeURIComponent(pathname)}`} onClick={onNavigate} className={box}>
-        <span className={avatar} aria-hidden="true">
-          <User className="size-4" />
-        </span>
-        <span className="leading-tight">
-          <span className="block text-sm font-medium text-fg">Log in</span>
-          <span className="block text-xs text-muted">to use the assistant</span>
-        </span>
-      </Link>
-    );
-  }
 
   return (
     <Link href="/profile" onClick={onNavigate} className={box}>
@@ -84,10 +94,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const current = NAV_ITEMS.find((item) => item.href === pathname);
   const hydrated = useHydrated();
+  const user = useSessionUser();
   const { readings } = useReadings();
   const { alertsEnabled } = usePreferences();
   // The current time is only read in the browser, never while the page is prerendered.
   const recentFlags = useMemo(() => (hydrated && alertsEnabled ? countRecentFlags(readings) : 0), [hydrated, alertsEnabled, readings]);
+  const showAuth = hydrated && !user;
 
   useEffect(() => {
     if (!open) return;
@@ -98,7 +110,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="senzora-app min-h-screen xl:pt-20">
-      {/* Desktop sidebar */}
+      {/* Desktop top bar: nav links on the left, profile or the Log in and Sign up buttons on the right */}
       <aside className="telemetry-topnav fixed inset-x-0 top-0 z-30 hidden h-20 items-center gap-6 border-b border-line bg-surface/95 px-6 backdrop-blur-xl xl:flex">
         <Logo />
         <NavLinks compact />
@@ -124,7 +136,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
               <NavLinks onNavigate={() => setOpen(false)} />
             </div>
-            <ProfileCard onNavigate={() => setOpen(false)} />
+            <ProfileCard onNavigate={() => setOpen(false)} fill />
           </aside>
         </div>
       )}
@@ -145,6 +157,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <h1 className="truncate font-display text-xl font-semibold tracking-tight text-fg sm:text-2xl">{current?.title ?? "Senzora"}</h1>
               <p className="hidden truncate text-sm text-muted sm:block">{current?.description}</p>
             </div>
+            {/* Tablet widths: the desktop bar is hidden, so the buttons sit here. Phones get the strip below the header. */}
+            {showAuth && (
+              <div className="hidden sm:block xl:hidden">
+                <AuthButtons />
+              </div>
+            )}
             <Link
               href="/insights"
               aria-label={recentFlags > 0 ? `View alerts and insights: ${recentFlags} flagged reading${recentFlags === 1 ? "" : "s"} in the last 7 days` : "View alerts and insights"}
@@ -156,6 +174,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <ThemeToggle />
           </div>
         </header>
+
+        {/* Phones: a strip under the header so Log in and Sign up are always easy to find */}
+        {showAuth && (
+          <div className="border-b border-line bg-card/60 px-4 py-3 sm:hidden">
+            <p className="mb-2 text-xs text-muted">Log in to record readings and use the assistant.</p>
+            <AuthButtons fill />
+          </div>
+        )}
+
         <main className="mx-auto w-full max-w-[90rem] flex-1 px-4 py-7 sm:px-6 lg:px-8">{children}</main>
       </div>
     </div>

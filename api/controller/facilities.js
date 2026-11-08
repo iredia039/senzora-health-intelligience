@@ -1,6 +1,6 @@
 const data = require('../data/facilities')
 const { distance } = require('../utils/distance')
-const { fetchNearbyFacilities, toFacility } = require('../utils/overpass');
+const { fetchNearbyFacilities, toFacility } = require('../utils/geoapify')
 
 /**
  * @param {import('express').Request} req
@@ -44,10 +44,10 @@ async function getFacilities(req, res) {
     let source = data
 
     try {
-      const element = await fetchNearbyFacilities(lat, longs, radius)
-      source = element.map(toFacility).filter(Boolean)
+    const element = await fetchNearbyFacilities(lat, longs, radius)
+    source = element.map(toFacility).filter(Boolean)
     } catch (error) {
-        console.warn(`overpass failed ${error.message}`);
+    console.warn(`geoapify failed ${error.message}`);
         
     }
 
