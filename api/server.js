@@ -6,6 +6,7 @@ setGlobalDispatcher(new Agent({ connect: { timeout: 30000 } }))
 const cors = require('cors')
 const express = require('express')
 const app = express()
+app.set('trust proxy', 1)
 const registerRoute = require('./routes/authRoutes')
 const helmet = require('helmet')
 
