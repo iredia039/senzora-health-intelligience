@@ -6,6 +6,7 @@ const data = require('../data/facilities')
 const { checkPassword } = require('../utils/checkPassword')
 const { MAX_ATTEMPTS, generateCode, codeMatches, newCodeFields, newPasswordCodeFields, secondsUntilResend } = require('../utils/verification')
 const { sendVerificationEmail, sendPasswordChangeEmail, sendPasswordResetEmail } = require('../utils/mailer')
+const { normalizeEmail } = require('../utils/normalizeEmail')
 
 /**
  * @param {import('express').Request} req
@@ -17,7 +18,7 @@ async function register(req, res) {
     try {
         const data = {
             name: req.body.name,
-            email: req.body.email,
+            email: normalizeEmail(req.body.email),
             password: req.body.password,
             phone: req.body.phone
         }
@@ -81,7 +82,7 @@ if (passwordError) {
  */
 async function verifyEmail(req, res) {
     try {
-        const email = req.body.email
+        const email = normalizeEmail(req.body.email)
         const code = req.body.code
 
         if (typeof email !== 'string' || typeof code !== 'string' || !email || !code.trim()) {
@@ -138,7 +139,7 @@ async function verifyEmail(req, res) {
  */
 async function resendCode(req, res) {
     try {
-        const email = req.body.email
+        const email = normalizeEmail(req.body.email)
 
         if (typeof email !== 'string' || !email) {
             return res.status(400).json({ error: 'missing fields' })
@@ -180,7 +181,7 @@ async function resendCode(req, res) {
 async function login(req, res) {
     try {
             const data = {
-        email:req.body.email,
+        email: normalizeEmail(req.body.email),
         password:req.body.password
     }
 
@@ -399,7 +400,7 @@ async function confirmPasswordChange(req, res) {
 
 async function forgotPassword(req, res) {
     try {
-        const email = req.body.email
+        const email = normalizeEmail(req.body.email)
 
         if (!email || typeof email !== 'string') {
             return res.status(400).json({ error: 'missing fields' })
@@ -437,7 +438,8 @@ async function forgotPassword(req, res) {
 
 async function resetPassword(req, res) {
     try {
-        const { email, code, newPassword } = req.body
+        const { code, newPassword } = req.body
+        const email = normalizeEmail(req.body.email)
 
         if (!email || !code || !newPassword || typeof email !== 'string' || typeof code !== 'string') {
             return res.status(400).json({ error: 'missing fields' })
