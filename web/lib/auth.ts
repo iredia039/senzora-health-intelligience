@@ -4,7 +4,6 @@ import { clearChat } from "@/lib/storage";
 
 type LoginResponse = { token: string; user: SessionUser };
 
-/** What GET /me and PATCH /me send back. */
 export type Profile = { id: number; name: string; email: string };
 
 /** Creates the account as unverified and emails a 6-digit code. The person is not logged in yet. */

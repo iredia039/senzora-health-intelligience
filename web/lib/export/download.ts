@@ -1,4 +1,3 @@
-/** Saves text as a file in the browser. Nothing is uploaded anywhere. */
 export function downloadFile(filename: string, content: string, mime: string): void {
   const url = URL.createObjectURL(new Blob([content], { type: mime }));
   const link = document.createElement("a");

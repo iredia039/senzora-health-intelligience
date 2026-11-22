@@ -72,7 +72,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   const toMessage = (err: unknown) => (err instanceof ApiError ? err.message : "Something went wrong. Try again.");
 
-  // Counts the resend wait down one second at a time.
   useEffect(() => {
     if (cooldown <= 0) return;
     const timer = setTimeout(() => setCooldown((s) => s - 1), 1000);

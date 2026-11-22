@@ -26,7 +26,6 @@ export default function SecuritySection() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
 
-  // Counts the resend wait down one second at a time.
   useEffect(() => {
     if (wait <= 0) return;
     const timer = setTimeout(() => setWait((w) => w - 1), 1000);

@@ -10,12 +10,10 @@ type ConversationDetail = {
   messages: { id: number; role: string; content: string; createdAt: string }[];
 };
 
-/** GET /conversations: the logged-in user's saved chats, newest first. */
 export function listConversations(): Promise<ConversationSummary[]> {
   return apiRequest<ConversationSummary[]>("/conversations", { auth: true });
 }
 
-/** GET /conversations/:id: one saved chat, turned into the messages the chat screen shows. */
 export async function loadConversation(id: number): Promise<ChatMessage[]> {
   const data = await apiRequest<ConversationDetail>(`/conversations/${id}`, { auth: true });
   return data.messages.flatMap<ChatMessage>((m) =>

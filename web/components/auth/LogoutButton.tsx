@@ -4,7 +4,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import { logout } from "@/lib/auth";
 import { card, primaryButton, secondaryButton } from "@/components/profile/ui";
 
-/** A Log out button that asks "Are you sure?" before it logs the user out. */
 export default function LogoutButton({
   className,
   disabled,
@@ -18,7 +17,6 @@ export default function LogoutButton({
 }) {
   const [open, setOpen] = useState(false);
 
-  // Escape closes the question without logging out.
   useEffect(() => {
     if (!open) return;
     function onKey(event: KeyboardEvent) {

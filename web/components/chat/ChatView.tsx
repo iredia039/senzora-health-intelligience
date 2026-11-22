@@ -43,7 +43,6 @@ function messageFor(error: unknown): string {
   return "The assistant couldn't answer. Try again.";
 }
 
-/** Three vertical bars: the "live voice" icon. */
 function WaveIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className={className} aria-hidden="true">

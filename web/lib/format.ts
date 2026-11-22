@@ -15,7 +15,6 @@ export const VITAL_LABEL: Record<VitalType, string> = {
   blood_oxygen: "Blood oxygen",
 };
 
-/** Lower-case names for use inside sentences. */
 export const VITAL_NAME: Record<VitalType, string> = {
   heart_rate: "heart rate",
   blood_pressure: "blood pressure",
@@ -23,7 +22,6 @@ export const VITAL_NAME: Record<VitalType, string> = {
   blood_oxygen: "blood oxygen",
 };
 
-/** Short names for tight spaces, such as counts on the dashboard. */
 export const VITAL_SHORT: Record<VitalType, string> = {
   heart_rate: "heart rate",
   blood_pressure: "blood pressure",
