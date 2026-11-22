@@ -8,7 +8,7 @@ import LogoutButton from "@/components/auth/LogoutButton";
 
 const RESEND_SECONDS = 60;
 
-/** Same rule as the server, so people see the problem before waiting on the network. */
+// Client-side password validation — mirrors server rules
 function passwordProblem(password: string): string | null {
   if (password.length < 8) return "New password must be at least 8 characters.";
   if (!/[A-Z]/.test(password)) return "New password must contain at least one capital letter.";

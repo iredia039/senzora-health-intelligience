@@ -3,12 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ApiError, apiRequest } from "@/lib/api";
 
-/*
- * Voice has two ways to turn speech into text:
- *  - "browser": the browser's own speech tool (Chrome, Edge). Free, nothing goes through Senzora.
- *  - "recording": the page records a short clip, POST /transcribe sends it to the speech service, and the text comes back.
- *    Used where the browser tool is missing or blocked (Brave, Firefox), and as a backup when the browser tool fails.
- */
+// Two transcription modes: "browser" (native speech API) or "recording" (POST /transcribe fallback for Brave/Firefox)
 
 type RecognitionAlternative = { transcript: string };
 type RecognitionResult = { readonly isFinal: boolean; readonly [index: number]: RecognitionAlternative };
@@ -43,7 +38,7 @@ function getRecognizerConstructor(): BrowserRecognizerConstructor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-/** Brave has the browser speech tool but blocks the service behind it, so it always fails there. */
+// Brave blocks the native speech service even when the API exists
 function isBrave(): boolean {
   return typeof navigator !== "undefined" && "brave" in navigator;
 }
@@ -126,7 +121,7 @@ type RecognizerHandlers = {
   onEnd: () => void;
 };
 
-/* ---- Browser speech tool ---- */
+// Browser speech tool
 
 function startBrowserSpeech(handlers: RecognizerHandlers): Listener | null {
   const Ctor = getRecognizerConstructor();
@@ -134,11 +129,11 @@ function startBrowserSpeech(handlers: RecognizerHandlers): Listener | null {
 
   const recognizer = new Ctor();
   recognizer.lang = navigator.language || "en-US";
-  // One phrase at a time: Android Chrome repeats words in continuous mode.
+  // Continuous mode causes duplicate words on Android Chrome
   recognizer.continuous = false;
   recognizer.interimResults = true;
 
-  /** Set when the browser tool failed on the network and recording took over. */
+  // Set when browser speech fails mid-session and recording takes over
   let handedOver: Listener | null = null;
 
   recognizer.onresult = (event) => {
@@ -179,7 +174,7 @@ function startBrowserSpeech(handlers: RecognizerHandlers): Listener | null {
   };
 }
 
-/* ---- Recording ---- */
+// Recording-based transcription
 
 /** How loud the microphone must be (0 to 1) to count as speech. */
 const SPEECH_LEVEL = 0.03;
@@ -228,7 +223,7 @@ function startRecorder(handlers: RecognizerHandlers): Listener | null {
     }
   };
 
-  /** Runs once the recorder has stopped: sends the clip and reports the words. */
+  // Post-recording: upload clip and return transcript
   const finish = async (mimeType: string) => {
     release();
 
@@ -268,7 +263,7 @@ function startRecorder(handlers: RecognizerHandlers): Listener | null {
 
     stream = media;
 
-    // Stopped or aborted while the browser was still asking for the microphone.
+    // Cancelled while mic permission prompt was still open
     if (cancelled || userStopped) {
       release();
       end();
@@ -305,7 +300,7 @@ function startRecorder(handlers: RecognizerHandlers): Listener | null {
     startedAt = Date.now();
     rec.start(250);
 
-    // Watch the microphone level: stop on its own after the person finishes speaking.
+    // Auto-stop on silence via mic level analysis
     try {
       const context = new AudioContext();
       audioContext = context;
@@ -338,7 +333,7 @@ function startRecorder(handlers: RecognizerHandlers): Listener | null {
         if (done && rec.state !== "inactive") rec.stop();
       }, 100);
     } catch {
-      // No level meter in this browser: record a fixed 8 seconds, or until stopped by hand.
+      // No analyser support: fall back to 8 s fixed recording
       heardSpeech = true;
       window.setTimeout(() => {
         if (rec.state !== "inactive") rec.stop();
@@ -369,10 +364,7 @@ export function startRecognizer(handlers: RecognizerHandlers): Listener | null {
   return startRecorder(handlers);
 }
 
-/**
- * Voice typing: the spoken words are sent to onText.
- * Listening stops by itself after a pause, and start() can be pressed again to add more.
- */
+// Voice dictation hook — appends recognised text, stops on silence
 export function useDictation(onText: (text: string) => void, onError: (message: string) => void) {
   const mode = useVoiceMode();
   const [listening, setListening] = useState(false);
@@ -419,12 +411,12 @@ export function useDictation(onText: (text: string) => void, onError: (message: 
     setListening(true);
   }, []);
 
-  /** Ends listening and keeps the words. */
+  // Stop and keep words
   const stop = useCallback(() => {
     listenerRef.current?.stop();
   }, []);
 
-  /** Ends listening and throws the words away. */
+  // Stop and discard words
   const cancel = useCallback(() => {
     listenerRef.current?.abort();
   }, []);
@@ -432,9 +424,9 @@ export function useDictation(onText: (text: string) => void, onError: (message: 
   return { supported: mode !== "none", mode, listening, transcribing, start, stop, cancel };
 }
 
-/* ---- Reading replies out loud ---- */
+// Text-to-speech
 
-/** Splits a reply into short pieces, because Chrome cuts off long speech after about 15 seconds. */
+// Split text into short chunks to avoid Chrome's ~15 s speech cutoff
 function chunksOf(text: string): string[] {
   const pieces: string[] = [];
   for (const line of text.split(/\n+/)) {
@@ -459,7 +451,7 @@ function chunksOf(text: string): string[] {
   return pieces;
 }
 
-/** Reads the text out loud. The promise settles when speaking ends or is stopped. */
+/** Speaks text; resolves when done or stopped. */
 export function speak(text: string): Promise<void> {
   return new Promise((resolve) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
@@ -496,7 +488,7 @@ export function speak(text: string): Promise<void> {
   });
 }
 
-/** Stops any speech straight away. */
+/** Cancel speech immediately. */
 export function stopSpeaking(): void {
   if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
 }

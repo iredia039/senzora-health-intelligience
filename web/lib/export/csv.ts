@@ -16,7 +16,7 @@ const HEADER = [
   "notes",
 ];
 
-/** Quotes a field when needed, and stops spreadsheets from running notes that start like a formula. */
+// CSV field — quote if needed, prefix formula-injection chars
 function field(value: string | number): string {
   let text = String(value);
   if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
@@ -36,6 +36,6 @@ export function readingsToCsv(readings: Reading[]): string {
     r.source,
     r.notes ?? "",
   ]);
-  // The first character is a byte-order mark so Excel opens the file as UTF-8.
+  // BOM prefix so Excel opens as UTF-8
   return "\uFEFF" + [HEADER, ...rows].map((row) => row.map(field).join(",")).join("\r\n") + "\r\n";
 }

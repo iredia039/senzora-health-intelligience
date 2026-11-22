@@ -3,7 +3,7 @@ import { classifyReading, type Level } from "@/lib/analysis";
 import { formatWhen, readingValue } from "@/lib/format";
 import type { Insight, InsightStatus, Reading } from "@/types";
 
-/** Every status has its own icon and wording, so colour is never the only signal. */
+// Status config — icon + wording ensures colour is never the only signal
 const STATUS: Record<InsightStatus, { label: string; icon: LucideIcon; badge: string; card: string }> = {
   urgent: { label: "Urgent", icon: OctagonAlert, badge: "border-danger bg-raised text-danger", card: "border-danger" },
   caution: { label: "Flagged", icon: TriangleAlert, badge: "border-dashed border-danger text-danger", card: "border-line" },

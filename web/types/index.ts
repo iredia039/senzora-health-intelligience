@@ -27,7 +27,7 @@ export type BloodOxygenReading = ReadingBase & { type: "blood_oxygen"; spo2: num
 
 export type Reading = HeartRateReading | BloodPressureReading | BodyTemperatureReading | BloodOxygenReading;
 
-/** What the vitals form collects; the storage layer adds ids, source and timestamps. */
+/** Form input shape — storage layer adds id, source, and timestamps. */
 export type ReadingInput =
   | { type: "heart_rate"; bpm: number; measuredAt: string; notes?: string }
   | { type: "blood_pressure"; systolic: number; diastolic: number; measuredAt: string; notes?: string }
@@ -39,7 +39,7 @@ export type ThemePreference = "light" | "dark" | "system";
 export type Preferences = {
   displayName: string;
   theme: ThemePreference;
-  /** Prototype analysis rules are written for adults only. */
+  /** Prototype analysis rules — adults only. */
   ageGroup: "adult";
   alertsEnabled: boolean;
 };
@@ -53,7 +53,7 @@ export type Insight = {
   status: InsightStatus;
   explanation: string;
   nextStep: string;
-  /** Reading ids this insight is based on. */
+  /** Source reading ids. */
   readingIds: string[];
   limitations?: string;
   createdAt: string;
@@ -64,6 +64,6 @@ export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   createdAt: string;
-  /** True for responses from the deterministic prototype assistant. */
+  /** True for responses from the prototype assistant. */
   prototype?: boolean;
 };

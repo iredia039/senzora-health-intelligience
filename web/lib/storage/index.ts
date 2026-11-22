@@ -14,17 +14,11 @@ export const DEFAULT_PREFERENCES: Preferences = {
   alertsEnabled: true,
 };
 
-/*
- * Every piece of saved data belongs to one user: the key looks like "senzora:u17:readings".
- * When nobody is logged in there is no key, so nothing is read and nothing is written.
- */
+// Per-user storage keys (e.g. "senzora:u17:readings") — no key when logged out
 
 let claimedFor: string | null = null;
 
-/**
- * Older versions saved everything under shared keys like "senzora:readings".
- * The first user who loads the app after the update takes that old data, and the shared keys are removed.
- */
+// One-time migration: claim shared pre-v2 keys into the current user's namespace
 function claimLegacyData(prefix: string): void {
   if (claimedFor === prefix) return;
   claimedFor = prefix;
@@ -100,7 +94,7 @@ const isReadingList = (v: unknown): v is Reading[] =>
 const isPreferences = (v: unknown): v is Preferences =>
   typeof v === "object" && v !== null && typeof (v as Preferences).displayName === "string";
 
-/** Raw stored strings: stable values that React can compare cheaply to detect changes. */
+// Raw stored strings for cheap React change detection
 export const getReadingsSnapshot = (): string => snapshot("readings");
 export const getPreferencesSnapshot = (): string => snapshot("preferences");
 
@@ -113,7 +107,7 @@ export const loadPreferences = (): Preferences => ({
 });
 export const savePreferences = (prefs: Preferences): boolean => write("preferences", prefs);
 
-/* ---- Assistant conversation: one running chat, kept on this device ---- */
+// Chat conversation (device-local)
 
 const MAX_CHAT_MESSAGES = 100;
 
@@ -132,7 +126,7 @@ export const getChatSnapshot = (): string => snapshot("chat");
 
 export const loadChat = (): ChatMessage[] => read("chat", [], isChatList);
 
-/** Adds one message and keeps only the newest ones, so the chat can never fill up storage. */
+/** Append message, keeping only the newest MAX_CHAT_MESSAGES. */
 export const appendChatMessage = (message: ChatMessage): boolean => write("chat", [...loadChat(), message].slice(-MAX_CHAT_MESSAGES));
 
 /** The id of the server-side conversation this chat belongs to. A new chat has none. */
@@ -168,17 +162,17 @@ export const clearConversationId = (): void => {
   }
 };
 
-/** Starting a new chat also forgets the server conversation, so the next message opens a new one. */
+/** Clear chat and unlink the server conversation. */
 export const clearChat = (): boolean => {
   clearConversationId();
   return write("chat", []);
 };
 
-/** Replaces the running chat with a saved server conversation, so the next message continues that conversation. */
+/** Load a saved server conversation into the local chat. */
 export const openSavedChat = (messages: ChatMessage[], conversationId: number): boolean =>
   write("chat", messages.slice(-MAX_CHAT_MESSAGES)) && saveConversationId(conversationId);
 
-/** Subscribe to changes made in this tab or any other tab, and to logins and logouts. Returns an unsubscribe function. */
+/** Subscribe to storage changes in this tab, other tabs, and on login/logout. */
 export function subscribeToStorage(onChange: () => void): () => void {
   const onStorage = (e: StorageEvent) => (e.key === null || e.key.startsWith(PREFIX) ? onChange() : undefined);
   window.addEventListener(CHANGE_EVENT, onChange);
@@ -191,7 +185,7 @@ export function subscribeToStorage(onChange: () => void): () => void {
   };
 }
 
-/** Removes all of this user's Senzora data, including the saved theme. */
+/** Delete all stored data for this user, including theme preference. */
 export function resetAllData(): void {
   try {
     NAMES.forEach((name) => {
@@ -206,7 +200,7 @@ export function resetAllData(): void {
   }
 }
 
-/* ---- Reading changes: the only place the vitals screens write to storage ---- */
+// Reading writes (vitals screens only)
 
 const newId = () => crypto.randomUUID();
 
@@ -216,7 +210,7 @@ export function addReading(input: ReadingInput): boolean {
   return saveReadings([...loadReadings(), reading]);
 }
 
-/** An edited reading is always marked as entered by you. */
+/** Edited readings are always marked as manual. */
 export function updateReading(id: string, input: ReadingInput): boolean {
   const readings = loadReadings();
   const existing = readings.find((r) => r.id === id);
@@ -231,7 +225,7 @@ export function deleteReading(id: string): boolean {
 
 
 
-/* ---- Assistant consent: saved with a version so changed wording asks again ---- */
+// Assistant consent (versioned — changed wording re-prompts)
 
 const CONSENT_VERSION = 1;
 

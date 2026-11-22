@@ -5,7 +5,7 @@ export const SOURCE_LABEL: Record<ReadingSource, string> = { manual: "Entered by
 export const formatWhen = (iso: string) =>
   new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
-/** The order vitals are listed in on screens that show all of them. */
+// Display order across all screens
 export const VITAL_ORDER: VitalType[] = ["blood_pressure", "heart_rate", "body_temperature", "blood_oxygen"];
 
 export const VITAL_LABEL: Record<VitalType, string> = {
@@ -31,7 +31,7 @@ export const VITAL_SHORT: Record<VitalType, string> = {
 
 export const VITAL_UNIT: Record<VitalType, string> = { heart_rate: "bpm", blood_pressure: "mmHg", body_temperature: "\u00B0C", blood_oxygen: "%" };
 
-/** Adds the unit to a number: "72 bpm", "36.8 \u00B0C", "97%". */
+/** Format value with unit — e.g. "72 bpm", "36.8 °C", "97%". */
 export const withUnit = (text: string, type: VitalType) => (type === "blood_oxygen" ? `${text}%` : `${text} ${VITAL_UNIT[type]}`);
 
 export const readingName = (r: Reading) => VITAL_LABEL[r.type];
@@ -49,7 +49,7 @@ export function readingValue(r: Reading): string {
   }
 }
 
-/** A value for <input type="datetime-local">, in the person's local time. */
+/** ISO timestamp → datetime-local input value in local time. */
 export function toLocalInput(iso: string): string {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");

@@ -5,7 +5,7 @@ import { byNewest } from "@/lib/analysis";
 
 type ChatbotResponse = { reply: string; conversationId: number; title: string; emergency?: boolean };
 
-/** The API accepts at most 20 readings, so the newest 20 are sent. */
+// API limit: send newest 20 readings
 const MAX_READINGS = 20;
 
 function toPayload(readings: Reading[]) {
@@ -26,7 +26,7 @@ function toPayload(readings: Reading[]) {
     });
 }
 
-/** Sends one message to POST /chatbot. The server keeps the earlier messages of the conversation. */
+/** POST /chatbot — server maintains conversation history. */
 export async function askAssistant(message: string, readings: Reading[]): Promise<ChatMessage> {
   const conversationId = loadConversationId();
 
@@ -44,7 +44,7 @@ export async function askAssistant(message: string, readings: Reading[]): Promis
     saveConversationId(data.conversationId);
     return { id: crypto.randomUUID(), role: "assistant", content: data.reply, createdAt: new Date().toISOString() };
   } catch (error) {
-    // The server no longer has this conversation, so the next message starts a new one.
+    // Conversation expired on server — next message starts a new one
     if (error instanceof ApiError && error.status === 404) clearConversationId();
     throw error;
   }

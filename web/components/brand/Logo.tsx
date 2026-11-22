@@ -5,7 +5,6 @@ type LogoProps = {
 
 const sizes = { sm: 26, md: 34, lg: 48 } as const;
 
-/** Orbital symbol: two tilted signal orbits around a luminous central point. */
 export function SenzoraMark({ px = 34 }: { px?: number }) {
   return (
     <svg width={px} height={px} viewBox="0 0 32 32" fill="none" aria-hidden="true">

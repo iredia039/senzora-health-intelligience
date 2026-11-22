@@ -29,8 +29,7 @@ export const viewport: Viewport = {
   ],
 };
 
-// Runs before first paint so the saved theme is applied with no flash.
-// Senzora is dark-first: with no saved choice, the dark theme is used.
+// Inline script: apply saved theme before first paint — dark by default
 const themeScript = `(function(){try{var t=localStorage.getItem('senzora-theme');if(t!=='light'&&t!=='dark'){t='dark'}document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme='dark'}})()`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

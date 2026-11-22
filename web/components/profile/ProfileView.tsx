@@ -18,7 +18,7 @@ const SECTIONS: { id: SectionId; label: string }[] = [
   { id: "security", label: "Privacy & security" },
 ];
 
-/** True only in the browser, so nothing flashes in before the saved login has been checked. */
+// Browser-only hydration guard
 function useReady() {
   return useSyncExternalStore(
     () => () => {},
@@ -53,7 +53,7 @@ export default function ProfileView() {
     );
   }
 
-  // The key resets every form if a different account logs in while this page is open.
+  // key resets all forms if a different account logs in mid-session
   return <ProfileContent key={user.id} user={user} />;
 }
 

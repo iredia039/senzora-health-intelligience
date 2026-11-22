@@ -1,4 +1,4 @@
-/** Shared button styles: hover, keyboard focus (global outline), pressed and disabled states. */
+// Shared button base styles
 const base =
   "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm transition-all duration-200 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50";
 

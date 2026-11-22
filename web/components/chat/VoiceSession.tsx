@@ -7,12 +7,12 @@ import { recognitionErrorMessage, speak, startRecognizer, stopSpeaking, useVoice
 type Phase = "listening" | "thinking" | "speaking" | "paused";
 
 type Props = {
-  /** Sends what the person said and resolves with the assistant's reply, or null when it failed. */
+  /** Send spoken text; resolves with assistant reply or null on failure. */
   onSend: (text: string) => Promise<string | null>;
   onClose: () => void;
 };
 
-/** After this many silent turns in a row the session pauses instead of listening forever. */
+// Pause after this many consecutive silent turns
 const MAX_SILENT_TURNS = 2;
 
 const LABELS: Record<Phase, string> = {
@@ -34,7 +34,7 @@ export function VoiceSession({ onSend, onClose }: Props) {
     sendRef.current = onSend;
   });
 
-  // One loop: listen, send, read the reply out loud, listen again.
+  // Listen → send → speak reply → listen loop
   useEffect(() => {
     let active = true;
     let recognizer: Listener | null = null;

@@ -3,7 +3,7 @@ import { clearSession, getToken } from "@/lib/session";
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const TIMEOUT_MS = 60_000;
 
-/** An error from the API. status 0 means the request never got an answer. */
+/** API error — status 0 means no response received. */
 export class ApiError extends Error {
   status: number;
 
@@ -13,7 +13,7 @@ export class ApiError extends Error {
   }
 }
 
-/** body is sent as JSON. blob is sent as it is (a voice recording), with its own content type. */
+// body → JSON; blob → sent as-is with its own content-type (voice recording)
 type Options = { method?: "GET" | "POST" | "PATCH"; body?: unknown; blob?: Blob; auth?: boolean };
 
 function errorMessage(data: unknown): string | null {
@@ -24,7 +24,7 @@ function errorMessage(data: unknown): string | null {
   return null;
 }
 
-/** The one place the frontend talks to the API. Pass auth: true to send the saved token. */
+/** Central API fetch — pass auth: true to attach the saved token. */
 export async function apiRequest<T>(path: string, { method = "GET", body, blob, auth = false }: Options = {}): Promise<T> {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -57,11 +57,11 @@ export async function apiRequest<T>(path: string, { method = "GET", body, blob, 
   try {
     data = await response.json();
   } catch {
-    // The response had no JSON body.
+    // No JSON body (e.g. 204)
   }
 
   if (!response.ok) {
-    // An invalid or expired token means the saved login is no longer good.
+    // Invalid or expired token — clear the saved session
     if (auth && response.status === 401) clearSession();
     throw new ApiError(response.status, errorMessage(data) ?? "Something went wrong. Try again.");
   }

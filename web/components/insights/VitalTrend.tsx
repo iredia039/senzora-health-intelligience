@@ -13,7 +13,7 @@ const MAX_POINTS = 30;
 
 const flagLabel = (text: string) => ({ value: text, position: "insideTopRight" as const, fill: "var(--danger)", fontSize: 11 });
 
-/** How much space the chart leaves around the data, and how finely the axis is rounded. */
+// Chart axis padding and step per vital
 const AXIS: Record<VitalType, { pad: number; step: number }> = {
   heart_rate: { pad: 10, step: 5 },
   blood_pressure: { pad: 10, step: 5 },
@@ -21,7 +21,7 @@ const AXIS: Record<VitalType, { pad: number; step: number }> = {
   blood_oxygen: { pad: 2, step: 1 },
 };
 
-/** The values where readings get flagged, drawn as dashed lines. */
+// Dashed flag lines on the chart
 const FLAG_LINES: Record<VitalType, number[]> = {
   heart_rate: [THRESHOLDS.heartRate.low, THRESHOLDS.heartRate.high],
   blood_pressure: [THRESHOLDS.bloodPressure.caution.diastolic, THRESHOLDS.bloodPressure.caution.systolic],
@@ -51,13 +51,13 @@ export function VitalTrend({ summary }: { summary: VitalSummary }) {
     spo2: r.type === "blood_oxygen" ? r.spo2 : undefined,
   }));
 
-  // Keep the flag lines inside the chart even when every reading is well away from them.
+  // Clamp flag lines inside the chart domain
   const values = points.flatMap((p) => [p.bpm, p.systolic, p.diastolic, p.celsius, p.spo2]).filter((v): v is number => v !== undefined);
   const lines = FLAG_LINES[type];
   const { pad, step } = AXIS[type];
   const low = Math.floor((Math.min(...values, ...lines) - pad) / step) * step;
   const rawHigh = Math.ceil((Math.max(...values, ...lines) + pad) / step) * step;
-  // Oxygen saturation cannot go above 100%.
+  // SpO2 cannot exceed 100%
   const high = type === "blood_oxygen" ? Math.min(100, rawHigh) : rawHigh;
 
   const change = summary.change;

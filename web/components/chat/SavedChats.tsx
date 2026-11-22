@@ -33,14 +33,14 @@ function groupOf(iso: string): Group {
 }
 
 type Props = {
-  /** Called with the id of the chat the person picked. */
+  /** Chat selected callback. */
   onOpen: (id: number) => void;
-  /** Starts a fresh chat. */
+  /** New chat callback. */
   onNewChat: () => void;
   onClose: () => void;
-  /** Called when the server says the login is no longer good. */
+  /** Session expired callback. */
   onUnauthorized: () => void;
-  /** True while a message is sending or another chat is opening. */
+  /** Disables interactions while busy. */
   disabled: boolean;
 };
 
@@ -71,7 +71,7 @@ export function SavedChats({ onOpen, onNewChat, onClose, onUnauthorized, disable
     return () => {
       cancelled = true;
     };
-    // The list loads once each time the panel opens, and again when Try again is pressed.
+    // Load on open and on retry
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reloadKey]);
 

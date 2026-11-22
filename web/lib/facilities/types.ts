@@ -1,23 +1,23 @@
 export type FacilityType = "hospital" | "clinic";
 
-/** One place Senzora can show. Keep these fields in step with the facilities entry in CONTRACT.md. */
+/** Facility — keep in sync with CONTRACT.md. */
 export type Facility = {
   id: string;
   name: string;
   type: FacilityType;
   address: string;
-  /** The neighbourhood, shown next to the city. */
+/** Neighbourhood label shown next to city. */
   area: string;
   lat: number;
   lng: number;
-  /** Has an emergency department. False can also mean "not confirmed" for places from OpenStreetMap. */
+  /** Has emergency dept — false may also mean unconfirmed (OSM). */
   emergency: boolean;
   open24h: boolean;
-  /** "osm" for real places from OpenStreetMap, "demo" for the made-up fallback list. */
+  /** "osm" = real OpenStreetMap data, "demo" = fallback mock. */
   source: "osm" | "demo";
 };
 
-/** A facility plus how far it is from the person searching. */
+/** Facility with distance from the search origin. */
 export type FacilityResult = Facility & { distanceKm: number };
 
 /** What the frontend sends. The API takes the same values as query parameters. */

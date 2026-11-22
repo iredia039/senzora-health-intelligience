@@ -23,7 +23,7 @@ const TYPE_INFO: Record<FacilityType, { label: string; icon: LucideIcon }> = {
 
 const selectClass = "w-full rounded-xl border border-line bg-canvas px-3.5 py-2.5 text-sm text-fg";
 
-/** Plain-language reasons, keyed by the browser's GeolocationPositionError codes. */
+// Geolocation error messages keyed by GeolocationPositionError code
 const LOCATION_ERRORS: Record<number, string> = {
   1: "Location permission was blocked. Choose an area below instead, or allow location for this site in your browser settings.",
   2: "Your device could not work out where you are. Choose an area below instead.",
@@ -82,20 +82,19 @@ function FacilityCard({ facility }: { facility: FacilityResult }) {
 }
 
 export function FindCareView() {
-  // Where the person is. It lives only in this component and is never saved.
+  // User's location — component-local, never persisted
   const [origin, setOrigin] = useState<Origin | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState("");
   const [type, setType] = useState<TypeFilter>("all");
   const [radiusKm, setRadiusKm] = useState<number>(DEFAULT_RADIUS_KM);
-  // The city list shows once sharing a location has failed, and stays visible whenever a place is set,
-  // so a wrong location (a laptop guessing from Wi-Fi) can always be corrected.
+  // City picker stays visible after geolocation fails so a bad location (e.g. Wi-Fi guess) can be corrected
   const [showAreas, setShowAreas] = useState(false);
 
   const [results, setResults] = useState<FacilityResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
-  // Each search gets a number. An answer for an older search is ignored, so a slow reply never overwrites a newer one.
+  // Search counter — stale responses from earlier searches are discarded
   const latestSearch = useRef(0);
 
   const runSearch = async (target: Origin, nextType: TypeFilter, nextRadius: number) => {

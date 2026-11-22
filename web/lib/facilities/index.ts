@@ -8,7 +8,7 @@ export const DEFAULT_RADIUS_KM = 10;
 const EARTH_RADIUS_KM = 6371;
 const toRadians = (deg: number) => (deg * Math.PI) / 180;
 
-/** Straight-line distance between two points on Earth (the haversine formula). */
+/** Haversine straight-line distance in km. */
 export function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const dLat = toRadians(b.lat - a.lat);
   const dLng = toRadians(b.lng - a.lng);
@@ -16,14 +16,10 @@ export function distanceKm(a: { lat: number; lng: number }, b: { lat: number; ln
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(h));
 }
 
-/** What GET /facilities sends back for each place: a facility without "source", plus the distance. */
+// API shape: Facility without "source" + server-computed distance
 type ApiFacility = Omit<Facility, "source"> & { distanceKm: number };
 
-/**
- * The one place the Find Care page gets its facilities from.
- * It calls GET /facilities on the API, which answers with real places from OpenStreetMap
- * or, if the map service is down, with the demo list. Ids that start with "geo-" are real.
- */
+// Fetch facilities from GET /facilities (OSM data or demo fallback)
 export async function searchFacilities({ lat, lng, type, radiusKm = DEFAULT_RADIUS_KM }: FacilitySearch): Promise<FacilityResult[]> {
   const params = new URLSearchParams({ lat: String(lat), lng: String(lng), radiusKm: String(radiusKm) });
   if (type) params.set("type", type);

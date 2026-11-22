@@ -16,7 +16,7 @@ const RESEND_SECONDS = 60;
 
 const inputClass = "w-full rounded-xl border border-line bg-canvas px-3.5 py-2.5 text-sm text-fg placeholder:text-muted";
 
-/** Only same-site paths are allowed, so a crafted link cannot send someone to another site. */
+// Open-redirect guard — same-site paths only
 function safeNext(value: string | null): string {
   return value && value.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
 }
@@ -114,11 +114,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
       router.push(next);
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
-        // The password was right but the email is not verified yet, so send a fresh code.
+        // 403: correct password but email unverified — resend code
         try {
           await resendCode(email.trim());
         } catch (resendErr) {
-          // 429 means a code was sent less than a minute ago, which is fine.
+          // 429: code already sent recently — ignore
           if (!(resendErr instanceof ApiError && resendErr.status === 429)) {
             setError(toMessage(resendErr));
             return;
@@ -157,7 +157,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       await login(email.trim(), password);
       router.push(next);
     } catch {
-      // The email is verified now, so a failed automatic login sends them to the log in page.
+      // Email verified but auto-login failed — redirect to login page
       router.push(`/login?next=${encodeURIComponent(next)}`);
     } finally {
       setBusy(false);

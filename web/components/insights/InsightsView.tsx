@@ -12,7 +12,7 @@ import type { InsightStatus } from "@/types";
 import { InsightCard, LEVEL_LABEL } from "./InsightCard";
 import { VitalTrend } from "./VitalTrend";
 
-/** The vital that needs the most attention is shown first. */
+// Sort vitals by attention needed
 const ATTENTION_RANK: Record<InsightStatus, number> = { urgent: 0, caution: 1, reassuring: 2, insufficient_data: 3 };
 
 const MAX_FLAGGED = 10;

@@ -53,7 +53,7 @@ export function HistoryView() {
   const [shown, setShown] = useState(PAGE_SIZE);
   const [status, setStatus] = useState("");
 
-  // Filtering reads the current time, so it only runs in the browser, never while prerendering.
+  // Filtering uses current time — browser only, never during prerender
   const visible = useMemo(() => (ready ? applyFilters(readings, filters) : []), [ready, readings, filters]);
   const summaries = useMemo(() => VITAL_ORDER.map((type) => summarize(visible, type)).filter((s) => s.count > 0), [visible]);
 

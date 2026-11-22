@@ -42,7 +42,7 @@ function NavLinks({ onNavigate, compact = false }: { onNavigate?: () => void; co
   );
 }
 
-/** The Log in and Sign up buttons shown to anyone who is not logged in. fill makes them share the row equally. */
+// Auth buttons for logged-out users — fill prop makes them share the row
 function AuthButtons({ onNavigate, fill = false }: { onNavigate?: () => void; fill?: boolean }) {
   const pathname = usePathname();
   const next = `?next=${encodeURIComponent(pathname)}`;
@@ -68,7 +68,7 @@ function ProfileCard({ onNavigate, fill = false }: { onNavigate?: () => void; fi
   const hydrated = useHydrated();
   const user = useSessionUser();
 
-  // Nothing is shown until the browser has checked for a login, so a name never flashes in or out.
+  // Render placeholder until hydrated to prevent name flash
   if (!hydrated) return <div aria-hidden="true" className="h-[3.625rem] rounded-xl border border-line bg-card" />;
 
   if (!user) return <AuthButtons onNavigate={onNavigate} fill={fill} />;
@@ -97,7 +97,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const user = useSessionUser();
   const { readings } = useReadings();
   const { alertsEnabled } = usePreferences();
-  // The current time is only read in the browser, never while the page is prerendered.
+  // Read clock only in browser — avoids SSR mismatch
   const recentFlags = useMemo(() => (hydrated && alertsEnabled ? countRecentFlags(readings) : 0), [hydrated, alertsEnabled, readings]);
   const showAuth = hydrated && !user;
 

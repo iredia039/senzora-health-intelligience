@@ -10,7 +10,7 @@ import { byNewest } from "@/lib/analysis";
 
 const axisTick = { fill: "var(--muted)", fontSize: 12 };
 
-/** Heart rate is the first tab, then the others in their usual order. */
+// Heart rate first tab, then standard vital order
 const TAB_ORDER: VitalType[] = ["heart_rate", ...VITAL_ORDER.filter((type) => type !== "heart_rate")];
 const DAY = 86_400_000;
 const WINDOWS = [
@@ -20,10 +20,7 @@ const WINDOWS = [
   { id: "1y", label: "1 year", ms: 365 * DAY },
 ] as const;
 
-/**
- * Reference values drawn on the chart. These must match the thresholds in lib/analysis.
- * Only heart rate and blood pressure have one here; temperature and blood oxygen have none yet.
- */
+// Reference lines — must match lib/analysis thresholds
 const HEART_RATE_RANGE = { low: 60, high: 100 };
 const BP_FLAG = { systolic: 140, diastolic: 90 };
 

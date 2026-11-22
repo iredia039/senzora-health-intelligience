@@ -75,7 +75,7 @@ function VitalTile({ type, reading, previous }: { type: VitalType; reading?: Rea
   );
 }
 
-/** `readings` must already be sorted newest first (the dashboard does this once and passes it down). */
+// Readings panel expects newest-first (dashboard sorts once and passes down)
 function IntelligencePanel({ readings }: { readings: Reading[] }) {
   const present = new Set(readings.map((reading) => reading.type));
   const missing = VITAL_ORDER.filter((type) => !present.has(type));
@@ -165,7 +165,7 @@ export function DashboardView() {
   const { readings } = useReadings();
   const user = useSessionUser();
   const [urgentOpen, setUrgentOpen] = useState(false);
-  // Newest first, with ties (same minute) broken by save order, the same rule the Insights page uses.
+  // Newest first; same tie-break rule as Insights page
   const sorted = [...readings].sort(byNewest);
   const latest = (type: VitalType) => sorted.find((reading) => reading.type === type);
   const previous = (type: VitalType) => sorted.filter((reading) => reading.type === type)[1];

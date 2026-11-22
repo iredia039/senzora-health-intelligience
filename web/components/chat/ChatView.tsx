@@ -150,7 +150,7 @@ export function ChatView() {
   const [voiceOpen, setVoiceOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  /** What was already typed when voice typing started, so spoken words are added after it. */
+  // Text already typed before dictation started — spoken words append after it
   const dictationBase = useRef("");
 
   const canSpeak = useCanSpeak();
@@ -160,7 +160,7 @@ export function ChatView() {
   );
 
   useEffect(() => {
-    // Defer browser-storage hydration so this effect only synchronizes with the client environment.
+    // Defer to sync only with the browser environment, not SSR
     const task = window.setTimeout(() => {
       setConsent(hasAssistantConsent() ? "given" : "missing");
       setSession(getToken() ? "in" : "out");
@@ -174,7 +174,7 @@ export function ChatView() {
     if (list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
   }, [messages.length, sending]);
 
-  // The message box grows with what is typed, up to about six lines, then scrolls.
+  // Auto-grow textarea up to ~6 lines
   useEffect(() => {
     const box = inputRef.current;
     if (!box) return;
@@ -201,7 +201,7 @@ export function ChatView() {
     setSession("out");
   }
 
-  /** Sends one message. Resolves with the assistant's reply text, or null when it did not work. */
+  // Send message handler
   async function send(text: string, retry = false): Promise<string | null> {
     const content = text.trim();
     if (!content || sending || opening) return null;
@@ -225,7 +225,7 @@ export function ChatView() {
       if (!appendChatMessage(reply)) setError(STORAGE_ERROR);
       return reply.content;
     } catch (err) {
-      // A 401 clears the saved login, so the page falls back to the log in notice with the reason shown there.
+      // 401 clears the token — fall back to sign-in notice
       if (getToken() === null) {
         endLogin(messageFor(err));
       } else {

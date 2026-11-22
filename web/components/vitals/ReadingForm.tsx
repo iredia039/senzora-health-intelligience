@@ -20,7 +20,7 @@ const wholeNumberIssue = (raw: string, min: number, max: number, what: string): 
   return n < min || n > max ? `Enter a value between ${min} and ${max}.` : null;
 };
 
-/** One decimal place at most, and a comma is accepted in place of a dot. */
+// Decimal validation — one decimal max, comma accepted as separator
 const decimalIssue = (raw: string, min: number, max: number, what: string): string | null => {
   const text = raw.trim().replace(",", ".");
   if (text === "") return `Enter ${what}.`;
@@ -192,7 +192,7 @@ export function ReadingForm({
     onSaved(editing ? "Changes saved." : "Reading saved.");
   };
 
-  // Readings belong to an account, so without a login there is no form, only a way to log in or sign up.
+  // Requires login — no form shown without a session
   if (!user) {
     const next = `?next=${encodeURIComponent(pathname)}`;
     return (

@@ -1,4 +1,4 @@
-/** The saved login: the token and the user's id and name, kept in this browser. */
+// Saved login: token + user stored in this browser
 
 const TOKEN_KEY = "senzora:token";
 const USER_KEY = "senzora:user";
@@ -33,18 +33,14 @@ export function loadUser(): SessionUser | null {
   }
 }
 
-/**
- * The start of every storage key that belongs to the logged-in user, like "senzora:u17:".
- * Each account gets its own prefix, so two accounts in one browser never share data.
- * Returns null when nobody is logged in.
- */
+// Per-user storage prefix (e.g. "senzora:u17:") — isolates accounts in shared browsers
 export function userPrefix(): string | null {
   const user = loadUser();
   if (!user || typeof user.id !== "number") return null;
   return `senzora:u${user.id}:`;
 }
 
-/** A stable string that changes when the login changes. Empty means nobody is logged in. */
+/** Stable snapshot string for React — changes on login/logout. */
 export function getSessionSnapshot(): string {
   try {
     return getToken() ? (window.localStorage.getItem(USER_KEY) ?? "") : "";
@@ -53,7 +49,7 @@ export function getSessionSnapshot(): string {
   }
 }
 
-/** Subscribe to logins and logouts in this tab or any other tab. Returns an unsubscribe function. */
+/** Subscribe to login/logout events across tabs. */
 export function subscribeToSession(onChange: () => void): () => void {
   window.addEventListener(CHANGE_EVENT, onChange);
   window.addEventListener("storage", onChange);
@@ -74,7 +70,7 @@ export function saveSession(token: string, user: SessionUser): boolean {
   }
 }
 
-/** Changes only the saved name. The token and the id stay the same, so nobody is logged out. */
+/** Update the stored display name without touching the token. */
 export function updateSessionName(name: string): boolean {
   try {
     const user = loadUser();
@@ -89,7 +85,7 @@ export function updateSessionName(name: string): boolean {
 
 export function clearSession(): void {
   try {
-    // Forget which server conversation this user was in (their chat messages stay saved under their own keys).
+    // Clear conversation link; chat messages stay under the user's own keys
     const prefix = userPrefix();
     if (prefix) window.localStorage.removeItem(`${prefix}conversation`);
     window.localStorage.removeItem("senzora:conversation");

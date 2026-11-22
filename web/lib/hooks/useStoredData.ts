@@ -16,12 +16,12 @@ import { byNewest } from "@/lib/analysis";
 
 const noopSubscribe = () => () => {};
 
-/** False on the server and during hydration, true afterwards, so saved data is only read in the browser. */
+// False on server/hydration, true in browser — guards localStorage reads
 export function useHydrated(): boolean {
   return useSyncExternalStore(noopSubscribe, () => true, () => false);
 }
 
-/** Saved readings, newest first. Re-renders when readings change in this tab or another. */
+// Readings hook — newest first, reactive across tabs
 export function useReadings(): { ready: boolean; readings: Reading[] } {
   const ready = useHydrated();
   const raw = useSyncExternalStore(subscribeToStorage, getReadingsSnapshot, () => "");
@@ -40,7 +40,7 @@ export function usePreferences(): Preferences {
   return useMemo(() => (ready ? loadPreferences() : DEFAULT_PREFERENCES), [ready, raw]);
 }
 
-/** The saved assistant conversation, oldest message first. */
+// Chat messages — oldest first
 export function useChat(): { ready: boolean; messages: ChatMessage[] } {
   const ready = useHydrated();
   const raw = useSyncExternalStore(subscribeToStorage, getChatSnapshot, () => "");

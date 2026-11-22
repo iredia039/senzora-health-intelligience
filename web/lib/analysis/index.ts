@@ -1,10 +1,7 @@
 import { VITAL_NAME, readingValue, withUnit } from "@/lib/format";
 import type { Insight, InsightStatus, Reading, VitalType } from "@/types";
 
-/**
- * Prototype rules, written for adults. Change a number here and every screen follows.
- * A reading is only flagged once it has already crossed a line: this file never predicts.
- */
+// Adult-only prototype thresholds — change here and all screens follow
 export const THRESHOLDS = {
   bloodPressure: {
     urgent: { systolic: 180, diastolic: 120 },
@@ -82,10 +79,7 @@ export function classifyReading(r: Reading): ReadingFlag {
   }
 }
 
-/**
- * Newest first. When two readings share the same measured time (for example two saved in the
- * same minute), the one saved last counts as newer, so every screen picks the same "latest".
- */
+// Newest first; ties broken by save order so all screens agree on "latest"
 export const byNewest = (a: Reading, b: Reading) =>
   Date.parse(b.measuredAt) - Date.parse(a.measuredAt) ||
   Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
@@ -105,7 +99,7 @@ export function countRecentFlags(readings: Reading[], days = 7, now = Date.now()
   return readings.filter((r) => Date.parse(r.measuredAt) >= since && classifyReading(r).level !== "normal").length;
 }
 
-/* ---- Trends: plain facts about the saved readings ---- */
+// Trends
 
 export type VitalSummary = {
   type: VitalType;
@@ -132,8 +126,7 @@ function numbers(r: Reading): number[] {
 }
 
 export function summarize(readings: Reading[], type: VitalType): VitalSummary {
-  // Oldest to newest. This is the exact reverse of the order the insight cards use,
-  // so the last item here is always the same reading as the first item there.
+  // Oldest to newest for the chart (reverse of insight order)
   const list = ofType(readings, type).sort(byNewest).reverse();
   if (list.length === 0) return { type, count: 0, readings: list };
 
@@ -159,7 +152,7 @@ export function summarize(readings: Reading[], type: VitalType): VitalSummary {
   return { type, count: list.length, readings: list, latest, average: withUnit(average, type), range: withUnit(range, type), change };
 }
 
-/* ---- Insights: what the flags mean, in plain language ---- */
+// Insights
 
 const STATUS_BY_LEVEL: Record<Level, InsightStatus> = { normal: "reassuring", caution: "caution", urgent: "urgent" };
 const LEVEL_RANK: Record<Level, number> = { normal: 0, caution: 1, urgent: 2 };
@@ -265,10 +258,10 @@ export function buildInsight(readings: Reading[], type: VitalType): Insight {
   }
 
   const flags = recent.map(classifyReading);
-  // The worst recent flag decides the status. When two are equally bad, the newest one wins.
+  // Worst recent flag sets the status; ties go to the newest
   const driver = flags.reduce((worst, f) => (LEVEL_RANK[f.level] > LEVEL_RANK[worst.level] ? f : worst), flags[0]);
   const status = STATUS_BY_LEVEL[driver.level];
-  // If the newest reading is already back in range, say the flag was earlier instead of "now".
+  // If latest is back in range, title says "was" not "is"
   const latestIsFlagged = flags[0].level !== "normal";
   const title =
     status === "urgent"
